@@ -1,0 +1,27 @@
+OdinEngine
+.vscode/
+*.code-workspace
+build/*
+debug/*
+release/*
+mingw/*
+*.spv
+
+# Visual studio
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+
+# CMake
+CMakeFiles
+CMakeCache.txt
+
+# Custom build directory for windows
+VisualStudio
+
+#clangd
+compile_commands.json
+.clangd/*
+.cache/*
