@@ -25,5 +25,9 @@ target_include_directories(NollaEngine PUBLIC
     Third-Party/entt/
 )
 
+#Window
+add_subdirectory(Servers/Window EXCLUDE_FROM_ALL)
+target_link_libraries(NollaEngine PRIVATE window)
+
 
 
