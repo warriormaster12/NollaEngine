@@ -1,4 +1,4 @@
- /*
+/*
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the “Software”), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
@@ -1331,6 +1331,14 @@ PhysicalDeviceSelector& PhysicalDeviceSelector::set_required_features_12(
 	return *this;
 }
 #endif
+#if defined(VK_API_VERSION_1_3)
+PhysicalDeviceSelector& PhysicalDeviceSelector::set_required_features_13(
+    VkPhysicalDeviceVulkan13Features features_13) {
+	features_13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+	add_required_extension_features(features_13);
+	return *this;
+}
+#endif
 PhysicalDeviceSelector& PhysicalDeviceSelector::defer_surface_initialization() {
 	criteria.defer_surface_initialization = true;
 	return *this;
@@ -1359,7 +1367,7 @@ bool PhysicalDevice::has_separate_transfer_queue() const {
 std::vector<VkQueueFamilyProperties> PhysicalDevice::get_queue_families() const {
 	return queue_families;
 }
-
+std::vector<const char*> PhysicalDevice::get_extensions() const { return extensions_to_enable; }
 PhysicalDevice::operator VkPhysicalDevice() const { return this->physical_device; }
 
 // ---- Queues ---- //

@@ -1,4 +1,4 @@
- /*
+/*
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the “Software”), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
@@ -53,6 +53,13 @@ template <typename T> class Result {
 		else
 			m_error = expected.m_error;
 	}
+	Result& operator=(Result const& result) {
+		m_init = result.m_init;
+		if (m_init)
+			new (&m_value) T{ result.m_value };
+		else
+			m_error = result.m_error;
+	}
 	Result(Result&& expected) : m_init(expected.m_init) {
 		if (m_init)
 			new (&m_value) T{ std::move(expected.m_value) };
@@ -60,7 +67,13 @@ template <typename T> class Result {
 			m_error = std::move(expected.m_error);
 		expected.destroy();
 	}
-
+	Result& operator=(Result&& result) {
+		m_init = result.m_init;
+		if (m_init)
+			new (&m_value) T{ std::move(result.m_value) };
+		else
+			m_error = std::move(result.m_error);
+	}
 	Result& operator=(const T& expect) {
 		destroy();
 		m_init = true;
@@ -309,8 +322,8 @@ class InstanceBuilder {
 	// Require a vulkan instance API version. Will fail to create if this version isn't available.
 	InstanceBuilder& require_api_version(uint32_t major, uint32_t minor, uint32_t patch = 0);
 
-	// Prefer a vulkan instance API version. If the desired version isn't available, it will use the highest version available.
-	// Should be constructed with VK_MAKE_VERSION or VK_MAKE_API_VERSION.
+	// Prefer a vulkan instance API version. If the desired version isn't available, it will use the
+	// highest version available. Should be constructed with VK_MAKE_VERSION or VK_MAKE_API_VERSION.
 	InstanceBuilder& desire_api_version(uint32_t preferred_vulkan_version);
 	// Prefer a vulkan instance API version. If the desired version isn't available, it will use the highest version available.
 	InstanceBuilder& desire_api_version(uint32_t major, uint32_t minor, uint32_t patch = 0);
@@ -435,6 +448,9 @@ struct PhysicalDevice {
 	// Advanced: Get the VkQueueFamilyProperties of the device if special queue setup is needed
 	std::vector<VkQueueFamilyProperties> get_queue_families() const;
 
+	// Query the list of extensions which should be enabled
+	std::vector<const char*> get_extensions() const;
+
 	// A conversion function which allows this PhysicalDevice to be used
 	// in places where VkPhysicalDevice would have been used.
 	operator VkPhysicalDevice() const;
@@ -521,6 +537,11 @@ class PhysicalDeviceSelector {
 	// Require a physical device which supports the features in VkPhysicalDeviceVulkan12Features.
 	// Must have vulkan version 1.2
 	PhysicalDeviceSelector& set_required_features_12(VkPhysicalDeviceVulkan12Features features_12);
+#endif
+#if defined(VK_API_VERSION_1_3)
+	// Require a physical device which supports the features in VkPhysicalDeviceVulkan13Features.
+	// Must have vulkan version 1.3
+	PhysicalDeviceSelector& set_required_features_13(VkPhysicalDeviceVulkan13Features features_13);
 #endif
 
 	// Used when surface creation happens after physical device selection.

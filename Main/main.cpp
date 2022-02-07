@@ -3,15 +3,19 @@
 #include <entt.hpp>
 
 #include "window.h"
+#include "vk_context.h"
 
 int main(int argc, char* argv[]) 
 {
     Logger::Init();
     Window::CreateWindow();
+    VkContext::InitContext();
     while (Window::GetWindowStatus()) {
-        Window::UpdateWindowEvents();
+        VkContext::PrepareFrame();
+
+        VkContext::SubmitFrame();
     }
-    ENGINE_CORE_INFO("window closed");
+    VkContext::DestroyContext();
     Window::DestroyWindow();
     return 0;
 }
