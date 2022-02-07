@@ -7,6 +7,12 @@
 
 #include "vk_tools.h"
 #include "vk_defaults.h"
+#include "vk_pipeline_builder.h"
+
+#include "window.h"
+#include <vector>
+
+static ShaderProgram triangle_program;
 
 void VkContext::InitContext() {
 
@@ -15,6 +21,63 @@ void VkContext::InitContext() {
     CommandbufferManager::Init();
 
     ENGINE_CORE_INFO("vulkan context created");
+}
+
+void VkContext::CreatePipeline(std::vector<std::string> filepaths) {
+
+    std::vector<ShaderPass> shader_passes;
+    shader_passes.reserve(filepaths.size());
+
+    for (int i = 0; i < filepaths.size(); i++)
+    {
+        shader_passes[i].filepath = filepaths[i];
+        if(!ShaderProgramBuilder::LoadShaderModule(i, shader_passes[i])) {
+            ENGINE_CORE_ERROR("failed to load shader program: {0}", shader_passes[i].filepath);
+        }
+        else {
+            ENGINE_CORE_INFO("succefully loaded shader program: {0}", shader_passes[i].filepath);
+        }
+        triangle_program.shader_stages.push_back(vkdefaults::PipelineShaderStageCreateInfo(shader_passes[i].stage, shader_passes[i].module));
+    }
+
+    //build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
+	PipelineBuilder pipeline_builder;
+
+	//vertex input controls how to read vertices from vertex buffers. We aren't using it yet
+	pipeline_builder.vertex_input_info = vkdefaults::VertexInputStateCreateInfo();
+
+	//input assembly is the configuration for drawing triangle lists, strips, or individual points.
+	//we are just going to draw triangle list
+	pipeline_builder.input_assembly = vkdefaults::InputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+	//build viewport and scissor from the swapchain extents
+	triangle_program.viewport.x = 0.0f;
+	triangle_program.viewport.y = 0.0f;
+	triangle_program.viewport.width = (float)SwapchainManager::GetVkSwapchain().swapchain_extent.width;
+	triangle_program.viewport.height = (float)SwapchainManager::GetVkSwapchain().swapchain_extent.height;
+	triangle_program.viewport.minDepth = 0.0f;
+	triangle_program.viewport.maxDepth = 1.0f;
+
+	triangle_program.scissor.offset = { 0, 0 };
+	triangle_program.scissor.extent = SwapchainManager::GetVkSwapchain().swapchain_extent;
+
+	//configure the rasterizer to draw filled triangles
+	pipeline_builder.rasterizer = vkdefaults::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+
+	//we don't use multisampling, so just run the default one
+	pipeline_builder.multisampling = vkdefaults::MultisamplingStateCreateInfo();
+
+	//a single blend attachment with no blending and writing to RGBA
+	pipeline_builder.color_blend_attachment = vkdefaults::ColorBlendAttachmentState();
+
+	//finally build the pipeline
+	pipeline_builder.BuildShaderProgram(triangle_program);
+
+    for (auto& current_shader_pass : shader_passes) {
+        vkDestroyShaderModule(DeviceManager::GetVkDevice().device, current_shader_pass.module, nullptr);
+    }
+
+    
 }
 
 void VkContext::PrepareFrame() {
@@ -38,7 +101,7 @@ void VkContext::PrepareFrame() {
     );
 
     if (draw_result == VK_ERROR_OUT_OF_DATE_KHR) {
-		//recreateSwapchain();
+		RecreateSwapchain();
         return;
 	} else if (draw_result != VK_SUCCESS && draw_result != VK_SUBOPTIMAL_KHR) {
 		ENGINE_CORE_ERROR("failed to acquire swap chain image!");
@@ -49,8 +112,11 @@ void VkContext::PrepareFrame() {
 	VkCommandBufferBeginInfo cmd_begin_info = vkdefaults::CommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 	VK_CHECK_RESULT(vkBeginCommandBuffer(current_frame.main_command_buffer, &cmd_begin_info));
+}
 
-
+void VkContext::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
+    auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
+    auto& device = DeviceManager::GetVkDevice().device;
     vktools::InsertImageMemoryBarrier(
         current_frame.main_command_buffer,
         SwapchainManager::GetVkSwapchain().swapchain_images[image_index],
@@ -81,7 +147,7 @@ void VkContext::PrepareFrame() {
     colorAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.clearValue.color = { 1.0f,1.0f,0.0f,1.0f };
+    colorAttachment.clearValue.color = { color[0],color[1],color[2],color[3] };
 
     // A single depth stencil attachment info can be used, but they can also be specified separately.
     // When both are specified separately, the only requirement is that the image view is identical.			
@@ -91,12 +157,13 @@ void VkContext::PrepareFrame() {
     depthStencilAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
     depthStencilAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthStencilAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    depthStencilAttachment.clearValue.depthStencil = { 1.0f,  0 };
+    depthStencilAttachment.clearValue.depthStencil = { depth,  0 };
 
     VkRenderingInfoKHR renderingInfo{};
     renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
     renderingInfo.renderArea = { 0, 0, SwapchainManager::GetVkSwapchain().swapchain_extent.width, SwapchainManager::GetVkSwapchain().swapchain_extent.height };
     renderingInfo.layerCount = 1;
+    renderingInfo.viewMask = 0;
     renderingInfo.colorAttachmentCount = 1;
     renderingInfo.pColorAttachments = &colorAttachment;
     renderingInfo.pDepthAttachment = &depthStencilAttachment;
@@ -105,6 +172,13 @@ void VkContext::PrepareFrame() {
     // Begin dynamic rendering
     vkCmdBeginRenderingKHR(current_frame.main_command_buffer, &renderingInfo);
 
+    vkCmdBindPipeline(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.pipeline);
+    vkCmdDraw(current_frame.main_command_buffer, 3, 1, 0, 0);
+}
+
+void VkContext::EndRenderLayer() {
+    auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
+    auto& device = DeviceManager::GetVkDevice().device;
 
     // End dynamic rendering
     vkCmdEndRenderingKHR(current_frame.main_command_buffer);
@@ -119,8 +193,6 @@ void VkContext::PrepareFrame() {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
         VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-
-
 }
 
 void VkContext::SubmitFrame() {
@@ -166,9 +238,9 @@ void VkContext::SubmitFrame() {
 
 	VkResult draw_result = vkQueuePresentKHR(DeviceManager::GetVkDevice().graphics_queue, &presentInfo);
 
-	if (draw_result == VK_ERROR_OUT_OF_DATE_KHR || draw_result == VK_SUBOPTIMAL_KHR) {
-		// windowHandler.frameBufferResized = false;
-		// recreateSwapchain();
+	if (draw_result == VK_ERROR_OUT_OF_DATE_KHR || draw_result == VK_SUBOPTIMAL_KHR || Window::IsFrameBufferResized()) {
+		Window::SetFrameBufferResizeState(false);
+		RecreateSwapchain();
 		
 	} else if (draw_result != VK_SUCCESS) {
 		ENGINE_CORE_ERROR("failed to present swap chain image!");
@@ -177,6 +249,12 @@ void VkContext::SubmitFrame() {
     
     //increase the number of frames drawn
 	frame_number ++;
+}
+
+void VkContext::RecreateSwapchain() {
+    vkDeviceWaitIdle(DeviceManager::GetVkDevice().device);
+    SwapchainManager::DestroySwapchain();
+    SwapchainManager::Init();
 }
 
 void VkContext::DestroyContext() {

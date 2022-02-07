@@ -16,5 +16,19 @@ namespace vkdefaults {
     VkSubmitInfo SubmitInfo(VkCommandBuffer* p_cmd);
     VkPresentInfoKHR PresentInfo();
 
-    VkImageMemoryBarrier imageMemoryBarrier();
+    VkImageMemoryBarrier ImageMemoryBarrier();
+
+    VkPipelineShaderStageCreateInfo PipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shader_module);
+
+    VkPipelineVertexInputStateCreateInfo VertexInputStateCreateInfo();
+
+    VkPipelineInputAssemblyStateCreateInfo InputAssemblyCreateInfo(VkPrimitiveTopology topology);
+
+    VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo(VkPolygonMode polygonMode);
+
+    VkPipelineMultisampleStateCreateInfo MultisamplingStateCreateInfo();
+
+    VkPipelineColorBlendAttachmentState ColorBlendAttachmentState();
+
+    VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo();
 }

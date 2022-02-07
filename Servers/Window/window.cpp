@@ -7,17 +7,23 @@
 #include "logger.h"
 
 
+void FramebufferResizeCallback(GLFWwindow* window, int width, int height) {
+    auto app = reinterpret_cast<Window*>(glfwGetWindowUserPointer(static_cast<GLFWwindow*>(window)));
+    app->SetFrameBufferResizeState(true);
+}
 
 
-void Window::CreateWindow(uint32_t width /*= 1280*/, uint32_t height /*= 720*/){
+void Window::CreateNewWindow(uint32_t width /*= 1280*/, uint32_t height /*= 720*/){
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     GLFWwindow* glfw_p_window;
     glfw_p_window = glfwCreateWindow(width,height, "Nolla Engine", nullptr, nullptr);
 
     p_window = glfw_p_window;
+
+    glfwSetFramebufferSizeCallback(static_cast<GLFWwindow*>(p_window), FramebufferResizeCallback);
 
     ENGINE_CORE_INFO("new window created");
 }
@@ -52,3 +58,5 @@ void Window::DestroyWindow(){
 
     ENGINE_CORE_INFO("new window destroyed");
 }
+
+

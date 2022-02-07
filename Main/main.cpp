@@ -3,19 +3,22 @@
 #include <entt.hpp>
 
 #include "window.h"
-#include "vk_context.h"
+#include "renderer.h"
 
 int main(int argc, char* argv[]) 
 {
     Logger::Init();
-    Window::CreateWindow();
-    VkContext::InitContext();
+    Window::CreateNewWindow();
+    Renderer::Init();
+    Renderer::CreateShaderProgram({"Shaders/triangle_vert.spv", "Shaders/triangle_frag.spv"});
     while (Window::GetWindowStatus()) {
-        VkContext::PrepareFrame();
+        Renderer::InsertDrawCalls([](){
+            Renderer::BeginNewRenderLayer({0.0f, 1.0f, 0.0f, 1.0f}, 1.0f);
 
-        VkContext::SubmitFrame();
+            Renderer::EndRenderLayer();
+        });    
     }
-    VkContext::DestroyContext();
+    Renderer::Destroy();
     Window::DestroyWindow();
     return 0;
 }
