@@ -1,5 +1,6 @@
 #include "vk_context.h"
 
+#include "glm/fwd.hpp"
 #include "logger.h"
 #include "vk_device.h"
 #include "vk_swapchain.h"
@@ -11,8 +12,13 @@
 
 #include "window.h"
 #include <vector>
+#include <glm/glm.hpp>
 
 static ShaderProgram triangle_program;
+
+struct PushData {
+    glm::vec4 color;
+};
 
 void VkContext::InitContext() {
 
@@ -24,20 +30,17 @@ void VkContext::InitContext() {
 }
 
 void VkContext::CreatePipeline(std::vector<std::string> filepaths) {
-
-    std::vector<ShaderPass> shader_passes;
-    shader_passes.reserve(filepaths.size());
-
     for (int i = 0; i < filepaths.size(); i++)
     {
-        shader_passes[i].filepath = filepaths[i];
-        if(!ShaderProgramBuilder::LoadShaderModule(i, shader_passes[i])) {
-            ENGINE_CORE_ERROR("failed to load shader program: {0}", shader_passes[i].filepath);
+        ShaderPass shader_pass;
+        shader_pass.filepath = filepaths[i];
+        if(!ShaderProgramBuilder::LoadShaderModule(i, shader_pass)) {
+            ENGINE_CORE_ERROR("failed to load shader program: {0}", shader_pass.filepath);
         }
         else {
-            ENGINE_CORE_INFO("succefully loaded shader program: {0}", shader_passes[i].filepath);
+            ENGINE_CORE_INFO("succefully loaded shader program: {0}", shader_pass.filepath);
         }
-        triangle_program.shader_stages.push_back(vkdefaults::PipelineShaderStageCreateInfo(shader_passes[i].stage, shader_passes[i].module));
+        triangle_program.passes.push_back(shader_pass);
     }
 
     //build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
@@ -49,17 +52,6 @@ void VkContext::CreatePipeline(std::vector<std::string> filepaths) {
 	//input assembly is the configuration for drawing triangle lists, strips, or individual points.
 	//we are just going to draw triangle list
 	pipeline_builder.input_assembly = vkdefaults::InputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-
-	//build viewport and scissor from the swapchain extents
-	triangle_program.viewport.x = 0.0f;
-	triangle_program.viewport.y = 0.0f;
-	triangle_program.viewport.width = (float)SwapchainManager::GetVkSwapchain().swapchain_extent.width;
-	triangle_program.viewport.height = (float)SwapchainManager::GetVkSwapchain().swapchain_extent.height;
-	triangle_program.viewport.minDepth = 0.0f;
-	triangle_program.viewport.maxDepth = 1.0f;
-
-	triangle_program.scissor.offset = { 0, 0 };
-	triangle_program.scissor.extent = SwapchainManager::GetVkSwapchain().swapchain_extent;
 
 	//configure the rasterizer to draw filled triangles
 	pipeline_builder.rasterizer = vkdefaults::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
@@ -73,9 +65,7 @@ void VkContext::CreatePipeline(std::vector<std::string> filepaths) {
 	//finally build the pipeline
 	pipeline_builder.BuildShaderProgram(triangle_program);
 
-    for (auto& current_shader_pass : shader_passes) {
-        vkDestroyShaderModule(DeviceManager::GetVkDevice().device, current_shader_pass.module, nullptr);
-    }
+
 
     
 }
@@ -172,7 +162,23 @@ void VkContext::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
     // Begin dynamic rendering
     vkCmdBeginRenderingKHR(current_frame.main_command_buffer, &renderingInfo);
 
+    triangle_program.viewport.width = SwapchainManager::GetVkSwapchain().swapchain_extent.width;
+    triangle_program.viewport.height = SwapchainManager::GetVkSwapchain().swapchain_extent.height;
+    triangle_program.viewport.x = 0.0f;
+    triangle_program.viewport.y = 0.0f;
+    triangle_program.viewport.minDepth = 0.0f;
+    triangle_program.viewport.maxDepth = 1.0f;
+    
+    triangle_program.scissor.extent = SwapchainManager::GetVkSwapchain().swapchain_extent;
+    triangle_program.scissor.offset = {0, 0};
+
+    vkCmdSetViewport(current_frame.main_command_buffer, 0, 1, &triangle_program.viewport);
+    vkCmdSetScissor(current_frame.main_command_buffer, 0, 1, &triangle_program.scissor);
+
     vkCmdBindPipeline(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.pipeline);
+    PushData data = {};
+    data.color = glm::vec4(0.0f, 0.7f, 0.5f, 1.0f);
+    vkCmdPushConstants(current_frame.main_command_buffer, triangle_program.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushData), &data);
     vkCmdDraw(current_frame.main_command_buffer, 3, 1, 0, 0);
 }
 
@@ -259,6 +265,7 @@ void VkContext::RecreateSwapchain() {
 
 void VkContext::DestroyContext() {
     vkDeviceWaitIdle(DeviceManager::GetVkDevice().device);
+    triangle_program.DestroyProgram();
     CommandbufferManager::Destroy();
     SwapchainManager::DestroySwapchain();
     DeviceManager::Destroy();

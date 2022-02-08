@@ -5,9 +5,12 @@
 #include "vk_defaults.h"
 #include "vk_swapchain.h"
 
+
+
 #include <cstddef>
 #include <fstream>
 #include <filesystem>
+#include <vector>
 
 
 
@@ -50,25 +53,62 @@ bool ShaderProgramBuilder::LoadShaderModule(int index, ShaderPass& out_shader_pa
     createInfo.pCode = buffer.data();
 
     //check that the creation goes well.
+
+    // Generate reflection data for a shader
+    SpvReflectResult result = spvReflectCreateShaderModule(fileSize, buffer.data(), &out_shader_pass.spv_module);
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+    // Enumerate and extract shader's input variables
+    uint32_t var_count = 0;
+    result = spvReflectEnumerateInputVariables(&out_shader_pass.spv_module, &var_count, NULL);
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
+    SpvReflectInterfaceVariable** input_vars =
+        (SpvReflectInterfaceVariable**)malloc(var_count * sizeof(SpvReflectInterfaceVariable*));
+    result = spvReflectEnumerateInputVariables(&out_shader_pass.spv_module, &var_count, input_vars);
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
+    
+    
     
     if (vkCreateShaderModule(device, &createInfo, nullptr, &out_shader_pass.module) != VK_SUCCESS) {
         return false;
     }
-    
-    if (index == 0){
-        out_shader_pass.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    }
-    else {
-        out_shader_pass.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    }
     return true;
+}
+
+void ShaderProgram::DestroyProgram() {
+    vkDestroyPipeline(DeviceManager::GetVkDevice().device, pipeline, nullptr);
+    vkDestroyPipelineLayout(DeviceManager::GetVkDevice().device, layout, nullptr);
 }
 
 
 void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
+
+    std::vector<VkPipelineShaderStageCreateInfo> shader_stages = {};
+
+    std::vector<VkPushConstantRange> push_constants;
+
+    for(auto& current_pass: shader_program.passes){
+        shader_stages.push_back(vkdefaults::PipelineShaderStageCreateInfo((VkShaderStageFlagBits)current_pass.spv_module.shader_stage, current_pass.module));
+        VkPushConstantRange push_constant = {};
+        
+        if(current_pass.spv_module.push_constant_blocks != nullptr)
+        {
+            auto& push_constant_blocks = current_pass.spv_module.push_constant_blocks;
+
+            push_constant.offset = push_constant_blocks->offset;
+            push_constant.size = push_constant_blocks->size;
+            push_constant.stageFlags = (VkShaderStageFlagBits)current_pass.spv_module.shader_stage;
+
+            push_constants.push_back(push_constant);
+        }
+        
+    }
+
     auto& device = DeviceManager::GetVkDevice().device;
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = vkdefaults::PipelineLayoutCreateInfo();
+    pipeline_layout_info.pPushConstantRanges = push_constants.data();
+    pipeline_layout_info.pushConstantRangeCount = push_constants.size();
 
 	VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &shader_program.layout));
 
@@ -94,14 +134,21 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &color_blend_attachment;
 
+    std::vector <VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR}; 
+    VkPipelineDynamicStateCreateInfo dynamic_state_info = {};
+    dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic_state_info.dynamicStateCount = dynamic_states.size();
+    dynamic_state_info.pDynamicStates = dynamic_states.data();
+        
+
     //build the actual pipeline
 	//we now use all of the info structs we have been writing into into this one to create the pipeline
 	VkGraphicsPipelineCreateInfo pipeline_info = {};
 	pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipeline_info.pNext = nullptr;
 
-	pipeline_info.stageCount = shader_program.shader_stages.size();
-	pipeline_info.pStages = shader_program.shader_stages.data();
+	pipeline_info.stageCount = shader_stages.size();
+	pipeline_info.pStages = shader_stages.data();
 	pipeline_info.pVertexInputState = &vertex_input_info;
 	pipeline_info.pInputAssemblyState = &input_assembly;
 	pipeline_info.pViewportState = &viewportState;
@@ -112,6 +159,7 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
 	pipeline_info.renderPass = VK_NULL_HANDLE;
 	pipeline_info.subpass = 0;
 	pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
+    pipeline_info.pDynamicState = &dynamic_state_info;
 
     // New create info to define color, depth and stencil attachments at pipeline create time
     VkPipelineRenderingCreateInfoKHR pipeline_rendering_create_info = {};
@@ -128,6 +176,17 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
     if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &shader_program.pipeline) != VK_SUCCESS)
     {
         ENGINE_CORE_ERROR("failed to create graphics pipeline");
+    }
+
+    for(auto& current_pass : shader_program.passes) {
+        // Destroy the reflection data when no longer required.
+        spvReflectDestroyShaderModule(&current_pass.spv_module);
+    }
+    
+
+    for(auto& stage : shader_stages)
+    {
+        vkDestroyShaderModule(DeviceManager::GetVkDevice().device, stage.module, nullptr);
     }
 
 }

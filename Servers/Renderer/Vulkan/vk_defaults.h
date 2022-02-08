@@ -24,7 +24,7 @@ namespace vkdefaults {
 
     VkPipelineInputAssemblyStateCreateInfo InputAssemblyCreateInfo(VkPrimitiveTopology topology);
 
-    VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo(VkPolygonMode polygonMode);
+    VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo(VkPolygonMode polygon_mode, VkCullModeFlags cull_mode = VK_CULL_MODE_BACK_BIT);
 
     VkPipelineMultisampleStateCreateInfo MultisamplingStateCreateInfo();
 

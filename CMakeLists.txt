@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 file(GLOB_RECURSE SRC
 ${PROJECT_SOURCE_DIR}/Main/*
 ${PROJECT_SOURCE_DIR}/Third-Party/vma/*
+${PROJECT_SOURCE_DIR}/Third-Party/spirv-reflect/*
 ${PROJECT_SOURCE_DIR}/Third-Party/vk-bootstrap/*
 ${PROJECT_SOURCE_DIR}/Servers/*
 ${PROJECT_SOURCE_DIR}/Utils/*
@@ -27,6 +28,8 @@ target_include_directories(NollaEngine PUBLIC
     Third-Party/vk-bootstrap/
     Third-Party/volk/
     Third-Party/vma/
+    Third-Party/spirv-reflect/
+    Third-Party/glm/
     Third-Party/spdlog/include/
 
     Utils/

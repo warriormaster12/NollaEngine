@@ -176,7 +176,7 @@ namespace vkdefaults
 		return info;
 	}
 
-    VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo(VkPolygonMode polygonMode)
+    VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo(VkPolygonMode polygon_mode, VkCullModeFlags cull_mode /*= VK_CULL_MODE_BACK_BIT*/)
 	{
 		VkPipelineRasterizationStateCreateInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -186,10 +186,10 @@ namespace vkdefaults
 		//discards all primitives before the rasterization stage if enabled which we don't want
 		info.rasterizerDiscardEnable = VK_FALSE;
 
-		info.polygonMode = polygonMode;
+		info.polygonMode = polygon_mode;
 		info.lineWidth = 1.0f;
 		//no backface cull
-		info.cullMode = VK_CULL_MODE_NONE;
+		info.cullMode = cull_mode;
 		info.frontFace = VK_FRONT_FACE_CLOCKWISE;
 		//no depth bias
 		info.depthBiasEnable = VK_FALSE;

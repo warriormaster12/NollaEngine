@@ -5,10 +5,15 @@
 #include <string>
 #include <vector>
 
+#include "spirv_reflect.h"
+
 struct ShaderPass {
     std::string filepath;
     VkShaderModule module;
-    VkShaderStageFlagBits stage;
+
+
+    SpvReflectShaderModule spv_module;
+
 };
 
 class ShaderProgramBuilder {
@@ -28,7 +33,9 @@ struct ShaderProgram {
     VkViewport viewport;
 	VkRect2D scissor;
 
-    std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
+    std::vector<ShaderPass> passes;
+
+    void DestroyProgram();
 };
 
 class PipelineBuilder {
