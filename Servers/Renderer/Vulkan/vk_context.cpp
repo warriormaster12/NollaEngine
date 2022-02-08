@@ -12,13 +12,10 @@
 
 #include "window.h"
 #include <vector>
-#include <glm/glm.hpp>
+
 
 static ShaderProgram triangle_program;
 
-struct PushData {
-    glm::vec4 color;
-};
 
 void VkContext::InitContext() {
 
@@ -161,6 +158,11 @@ void VkContext::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
 
     // Begin dynamic rendering
     vkCmdBeginRenderingKHR(current_frame.main_command_buffer, &renderingInfo);
+}
+
+void VkContext::BindPipeline() {
+
+    auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
 
     triangle_program.viewport.width = SwapchainManager::GetVkSwapchain().swapchain_extent.width;
     triangle_program.viewport.height = SwapchainManager::GetVkSwapchain().swapchain_extent.height;
@@ -176,11 +178,25 @@ void VkContext::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
     vkCmdSetScissor(current_frame.main_command_buffer, 0, 1, &triangle_program.scissor);
 
     vkCmdBindPipeline(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.pipeline);
-    PushData data = {};
-    data.color = glm::vec4(0.0f, 0.7f, 0.5f, 1.0f);
-    vkCmdPushConstants(current_frame.main_command_buffer, triangle_program.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushData), &data);
+
+}
+
+void VkContext::BindPushConstants(const void *p_values) {
+    auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
+    if(triangle_program.push_constants.size() > 0)
+    {
+        for(auto& current_pconstant: triangle_program.push_constants)
+        {
+            vkCmdPushConstants(current_frame.main_command_buffer, triangle_program.layout, current_pconstant.stageFlags, 0, current_pconstant.size, p_values);
+        }
+    }
+}
+
+void VkContext::Draw() {
+    auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
     vkCmdDraw(current_frame.main_command_buffer, 3, 1, 0, 0);
 }
+
 
 void VkContext::EndRenderLayer() {
     auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);

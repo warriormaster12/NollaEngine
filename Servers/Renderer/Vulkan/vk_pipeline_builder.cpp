@@ -85,7 +85,7 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
 
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages = {};
 
-    std::vector<VkPushConstantRange> push_constants;
+    
 
     for(auto& current_pass: shader_program.passes){
         shader_stages.push_back(vkdefaults::PipelineShaderStageCreateInfo((VkShaderStageFlagBits)current_pass.spv_module.shader_stage, current_pass.module));
@@ -99,7 +99,7 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
             push_constant.size = push_constant_blocks->size;
             push_constant.stageFlags = (VkShaderStageFlagBits)current_pass.spv_module.shader_stage;
 
-            push_constants.push_back(push_constant);
+            shader_program.push_constants.push_back(push_constant);
         }
         
     }
@@ -107,8 +107,8 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
     auto& device = DeviceManager::GetVkDevice().device;
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = vkdefaults::PipelineLayoutCreateInfo();
-    pipeline_layout_info.pPushConstantRanges = push_constants.data();
-    pipeline_layout_info.pushConstantRangeCount = push_constants.size();
+    pipeline_layout_info.pPushConstantRanges = shader_program.push_constants.data();
+    pipeline_layout_info.pushConstantRangeCount = shader_program.push_constants.size();
 
 	VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &shader_program.layout));
 

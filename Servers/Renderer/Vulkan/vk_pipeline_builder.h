@@ -35,6 +35,8 @@ struct ShaderProgram {
 
     std::vector<ShaderPass> passes;
 
+    std::vector<VkPushConstantRange> push_constants;
+
     void DestroyProgram();
 };
 

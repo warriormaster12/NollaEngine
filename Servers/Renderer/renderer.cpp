@@ -22,11 +22,15 @@ void Renderer::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
 }
 
 void Renderer::BindShaderProgram() {
+    VkContext::BindPipeline();
+}
 
+void Renderer::BindPushConstants(const void* p_values) {
+    VkContext::BindPushConstants(p_values);
 }
 
 void Renderer::Draw() {
-
+    VkContext::Draw();
 }
 
 void Renderer::EndRenderLayer() {
