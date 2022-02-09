@@ -1,4 +1,5 @@
 #include <iostream>
+#include "glm/fwd.hpp"
 #include "logger.h"
 #include <entt.hpp>
 #include <glm/glm.hpp>
@@ -26,8 +27,12 @@ int main(int argc, char* argv[])
             }data;
 
             data.color = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
+            TestBufferData test_data;
+            test_data.color = glm::vec4(1.0f, 0.5f ,0.25f,1.0f);
+            Renderer::UpdateBuffer(&test_data, sizeof(TestBufferData));
             Renderer::BindShaderProgram();
             Renderer::BindPushConstants(&data);
+            Renderer::BindDescriptorSets();
             Renderer::Draw();
             Renderer::EndRenderLayer();
         });    

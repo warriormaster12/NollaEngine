@@ -24,14 +24,10 @@ struct ShaderPass {
 
 };
 
+
 class ShaderProgramBuilder {
 public:
     static bool LoadShaderModule(int index, ShaderPass& out_shader_pass);
-private: 
-    static inline std::array<std::string, 2> shader_stage_extensions = {
-        ".vert",
-        ".frag"
-    };
 };
 
 struct ShaderProgram {
@@ -44,6 +40,8 @@ struct ShaderProgram {
     std::vector<ShaderPass> passes;
 
     std::vector<VkPushConstantRange> push_constants;
+
+    std::vector<VkDescriptorSet> descriptor_sets;
 
     void DestroyProgram();
 };

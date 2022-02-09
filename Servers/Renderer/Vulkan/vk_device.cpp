@@ -21,7 +21,7 @@ void DeviceManager::Init(){
     vkb::InstanceBuilder builder;
 
     auto inst_ret = builder.set_app_name("Nolla Engine")
-    .request_validation_layers(false)
+    .request_validation_layers(true)
     .use_default_debug_messenger()
     .build();
 

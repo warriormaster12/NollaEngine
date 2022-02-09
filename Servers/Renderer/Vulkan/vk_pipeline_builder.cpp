@@ -96,6 +96,7 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
         assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
         std::vector<DescriptorSetLayoutData> set_layouts(sets.size(), DescriptorSetLayoutData{});
+        shader_program.descriptor_sets.resize(sets.size());
         for (size_t i_set = 0; i_set < sets.size(); ++i_set) {
             const SpvReflectDescriptorSet& refl_set = *(sets[i_set]);
             DescriptorSetLayoutData& layout = set_layouts[i_set];

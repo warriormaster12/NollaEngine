@@ -25,8 +25,17 @@ void Renderer::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
     VkContext::BeginNewRenderLayer(color, depth);
 }
 
+
+void Renderer::UpdateBuffer(void* data, size_t data_size) {
+    VkContext::UpdateBuffer(data, data_size);
+}
+
 void Renderer::BindShaderProgram() {
     VkContext::BindPipeline();
+}
+
+void Renderer::BindDescriptorSets() {
+    VkContext::BindDescriptorSets();
 }
 
 void Renderer::BindPushConstants(const void* p_values) {

@@ -20,7 +20,6 @@
 
 static ShaderProgram triangle_program;
 static vktools::AllocatedBuffer triangle_buffer;
-static VkDescriptorSet set;
 
 
 void VkContext::InitContext() {
@@ -77,9 +76,11 @@ void VkContext::CreateBuffer(size_t alloc_size, int usage) {
         VkDescriptorBufferInfo info = {};
         info.buffer = triangle_buffer.buffer;
         info.range = alloc_size;
-        DescriptorBuilder::Begin(PipelineBuilder::l_cache, alloc)
-        .BindBuffer(0, info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
-        .Build(set);
+        DescriptorBuilder builder = DescriptorBuilder::Begin(PipelineBuilder::l_cache, alloc);
+        for(auto& current_set : triangle_program.descriptor_sets){
+            builder.BindBuffer(0, info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT);
+            builder.Build(current_set);
+        }
     }
     //TODO: Vertex and Index buffer support
 }
@@ -177,6 +178,17 @@ void VkContext::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
     vkCmdBeginRenderingKHR(current_frame.main_command_buffer, &renderingInfo);
 }
 
+
+void VkContext::UpdateBuffer(void* data, size_t data_size) {
+    //and copy it to the buffer
+	void* p_data;
+	vmaMapMemory(DeviceManager::GetVkDevice().allocator, triangle_buffer.allocation, &p_data);
+
+	memcpy(p_data, data, data_size);
+
+	vmaUnmapMemory(DeviceManager::GetVkDevice().allocator, triangle_buffer.allocation);
+}
+
 void VkContext::BindPipeline() {
 
     auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
@@ -207,8 +219,13 @@ void VkContext::BindPushConstants(const void *p_values) {
             vkCmdPushConstants(current_frame.main_command_buffer, triangle_program.layout, current_pconstant.stageFlags, 0, current_pconstant.size, p_values);
         }
     }
+}
 
-    vkCmdBindDescriptorSets(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.layout, 0, 1, &set, 0, 0);
+void VkContext::BindDescriptorSets() {
+    auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
+    for(int i = 0; i < triangle_program.descriptor_sets.size(); i++){
+        vkCmdBindDescriptorSets(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.layout, i, 1, &triangle_program.descriptor_sets[i], 0, 0);
+    }
 }
 
 void VkContext::Draw() {
