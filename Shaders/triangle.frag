@@ -10,9 +10,13 @@ layout( push_constant ) uniform constants
 	vec4 color;
 } TriangleData;
 
+layout (set = 0, binding = 0) uniform test_descriptor {
+	vec4 color;
+}test_data;
+
 void main()
 {
 	//return red
-	outFragColor = vec4(TriangleData.color);
+	outFragColor = vec4(test_data.color);
 }
 

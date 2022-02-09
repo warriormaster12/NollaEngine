@@ -9,6 +9,7 @@ class VkContext {
 public: 
     static void InitContext();
     static void CreatePipeline(std::vector<std::string> filepaths);
+    static void CreateBuffer(size_t alloc_size, int usage);
     static void PrepareFrame();
     static void BeginNewRenderLayer(std::array<float, 4> color, float depth);
     static void BindPipeline();

@@ -2,6 +2,7 @@
 
 #include "glm/fwd.hpp"
 #include "logger.h"
+#include "vk_descriptors.h"
 #include "vk_device.h"
 #include "vk_swapchain.h"
 #include "vk_commands_&_sync.h"
@@ -14,7 +15,12 @@
 #include <vector>
 
 
+
+
+
 static ShaderProgram triangle_program;
+static vktools::AllocatedBuffer triangle_buffer;
+static VkDescriptorSet set;
 
 
 void VkContext::InitContext() {
@@ -44,27 +50,38 @@ void VkContext::CreatePipeline(std::vector<std::string> filepaths) {
 	PipelineBuilder pipeline_builder;
 
 	//vertex input controls how to read vertices from vertex buffers. We aren't using it yet
-	pipeline_builder.vertex_input_info = vkdefaults::VertexInputStateCreateInfo();
+	PipelineBuilder::vertex_input_info = vkdefaults::VertexInputStateCreateInfo();
 
 	//input assembly is the configuration for drawing triangle lists, strips, or individual points.
 	//we are just going to draw triangle list
-	pipeline_builder.input_assembly = vkdefaults::InputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	PipelineBuilder::input_assembly = vkdefaults::InputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
 	//configure the rasterizer to draw filled triangles
-	pipeline_builder.rasterizer = vkdefaults::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+	PipelineBuilder::rasterizer = vkdefaults::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
 
 	//we don't use multisampling, so just run the default one
-	pipeline_builder.multisampling = vkdefaults::MultisamplingStateCreateInfo();
+	PipelineBuilder::multisampling = vkdefaults::MultisamplingStateCreateInfo();
 
 	//a single blend attachment with no blending and writing to RGBA
-	pipeline_builder.color_blend_attachment = vkdefaults::ColorBlendAttachmentState();
+	PipelineBuilder::color_blend_attachment = vkdefaults::ColorBlendAttachmentState();
 
 	//finally build the pipeline
-	pipeline_builder.BuildShaderProgram(triangle_program);
+	PipelineBuilder::BuildShaderProgram(triangle_program);    
+}
 
-
-
-    
+void VkContext::CreateBuffer(size_t alloc_size, int usage) {
+    if((VkBufferUsageFlags)usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT || VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
+    {
+        triangle_buffer =vktools::CreateBuffer(alloc_size, (VkBufferUsageFlags)usage, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        DescriptorAllocator alloc;
+        VkDescriptorBufferInfo info = {};
+        info.buffer = triangle_buffer.buffer;
+        info.range = alloc_size;
+        DescriptorBuilder::Begin(PipelineBuilder::l_cache, alloc)
+        .BindBuffer(0, info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
+        .Build(set);
+    }
+    //TODO: Vertex and Index buffer support
 }
 
 void VkContext::PrepareFrame() {
@@ -190,6 +207,8 @@ void VkContext::BindPushConstants(const void *p_values) {
             vkCmdPushConstants(current_frame.main_command_buffer, triangle_program.layout, current_pconstant.stageFlags, 0, current_pconstant.size, p_values);
         }
     }
+
+    vkCmdBindDescriptorSets(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.layout, 0, 1, &set, 0, 0);
 }
 
 void VkContext::Draw() {

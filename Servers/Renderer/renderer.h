@@ -5,11 +5,16 @@
 #include <vector>
 #include <functional>
 
+enum BufferTypes {
+    UNIFORM = 0x00000010, 
+    STORAGE = 0x00000020
+};
+
 class Renderer {
 public: 
     static void Init();
     static void CreateShaderProgram(std::vector<std::string> filepaths);
-
+    static void CreateBuffer(size_t alloc_size, BufferTypes usage);
     static void InsertDrawCalls(std::function<void()>&& drawCalls);
     static void BeginNewRenderLayer(std::array<float, 4> color, float depth);
     static void BindShaderProgram();

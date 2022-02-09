@@ -7,10 +7,13 @@
 
 
 
+
 #include <cstddef>
 #include <fstream>
 #include <filesystem>
 #include <vector>
+
+
 
 
 
@@ -66,9 +69,6 @@ bool ShaderProgramBuilder::LoadShaderModule(int index, ShaderPass& out_shader_pa
         (SpvReflectInterfaceVariable**)malloc(var_count * sizeof(SpvReflectInterfaceVariable*));
     result = spvReflectEnumerateInputVariables(&out_shader_pass.spv_module, &var_count, input_vars);
     assert(result == SPV_REFLECT_RESULT_SUCCESS);
-    
-    
-    
     if (vkCreateShaderModule(device, &createInfo, nullptr, &out_shader_pass.module) != VK_SUCCESS) {
         return false;
     }
@@ -84,7 +84,40 @@ void ShaderProgram::DestroyProgram() {
 void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
 
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages = {};
+    
+    std::vector<VkDescriptorSetLayout> descriptor_layouts = {};
+    for(auto& current_pass: shader_program.passes) {
+        uint32_t count = 0;
+        SpvReflectResult result = spvReflectEnumerateDescriptorSets(&current_pass.spv_module, &count, NULL);
+        assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
+        std::vector<SpvReflectDescriptorSet*> sets(count);
+        result = spvReflectEnumerateDescriptorSets(&current_pass.spv_module, &count, sets.data());
+        assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+        std::vector<DescriptorSetLayoutData> set_layouts(sets.size(), DescriptorSetLayoutData{});
+        for (size_t i_set = 0; i_set < sets.size(); ++i_set) {
+            const SpvReflectDescriptorSet& refl_set = *(sets[i_set]);
+            DescriptorSetLayoutData& layout = set_layouts[i_set];
+            layout.bindings.resize(refl_set.binding_count);
+            for (uint32_t i_binding = 0; i_binding < refl_set.binding_count; ++i_binding) {
+            const SpvReflectDescriptorBinding& refl_binding = *(refl_set.bindings[i_binding]);
+            VkDescriptorSetLayoutBinding& layout_binding = layout.bindings[i_binding];
+            layout_binding.binding = refl_binding.binding;
+            layout_binding.descriptorType = static_cast<VkDescriptorType>(refl_binding.descriptor_type);
+            layout_binding.descriptorCount = 1;
+            for (uint32_t i_dim = 0; i_dim < refl_binding.array.dims_count; ++i_dim) {
+                layout_binding.descriptorCount *= refl_binding.array.dims[i_dim];
+            }
+            layout_binding.stageFlags = static_cast<VkShaderStageFlagBits>(current_pass.spv_module.shader_stage);
+            }
+            layout.set_number = refl_set.set;
+            layout.create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            layout.create_info.bindingCount = refl_set.binding_count;
+            layout.create_info.pBindings = layout.bindings.data();
+            descriptor_layouts.push_back(l_cache.CreateDescriptorLayout(layout.create_info));
+        }
+    }
     
 
     for(auto& current_pass: shader_program.passes){
@@ -109,6 +142,8 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
     VkPipelineLayoutCreateInfo pipeline_layout_info = vkdefaults::PipelineLayoutCreateInfo();
     pipeline_layout_info.pPushConstantRanges = shader_program.push_constants.data();
     pipeline_layout_info.pushConstantRangeCount = shader_program.push_constants.size();
+    pipeline_layout_info.pSetLayouts = descriptor_layouts.data();
+    pipeline_layout_info.setLayoutCount = descriptor_layouts.size();
 
 	VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &shader_program.layout));
 

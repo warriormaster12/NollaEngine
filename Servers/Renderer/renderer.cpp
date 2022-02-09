@@ -10,6 +10,10 @@ void Renderer::CreateShaderProgram(std::vector<std::string> filepaths) {
     VkContext::CreatePipeline(filepaths);
 }
 
+void Renderer::CreateBuffer(size_t alloc_size, BufferTypes usage) {
+    VkContext::CreateBuffer(alloc_size, usage);
+}
+
 void Renderer::InsertDrawCalls(std::function<void()>&& drawCalls) {
     VkContext::PrepareFrame();
     drawCalls();

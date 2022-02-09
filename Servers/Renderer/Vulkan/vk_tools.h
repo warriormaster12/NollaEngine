@@ -27,6 +27,11 @@ namespace vktools {
 		int mipLevels;
 	};
 
+	struct AllocatedBuffer {
+		VkBuffer buffer;
+		VmaAllocation allocation;
+	};
+
 	void InsertImageMemoryBarrier(
 			VkCommandBuffer cmdbuffer,
 			VkImage image,
@@ -38,6 +43,9 @@ namespace vktools {
 			VkPipelineStageFlags dstStageMask,
 			VkImageSubresourceRange subresourceRange
 	);
+
+	AllocatedBuffer CreateBuffer(size_t alloc_size, VkBufferUsageFlags usage, VmaMemoryUsage memory_usage);
+	
 	
 }
 

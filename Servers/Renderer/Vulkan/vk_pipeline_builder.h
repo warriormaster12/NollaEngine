@@ -7,6 +7,14 @@
 
 #include "spirv_reflect.h"
 
+#include "vk_descriptors.h"
+
+struct DescriptorSetLayoutData {
+  uint32_t set_number;
+  VkDescriptorSetLayoutCreateInfo create_info;
+  std::vector<VkDescriptorSetLayoutBinding> bindings;
+};
+
 struct ShaderPass {
     std::string filepath;
     VkShaderModule module;
@@ -42,13 +50,15 @@ struct ShaderProgram {
 
 class PipelineBuilder {
 public:
-	VkPipelineVertexInputStateCreateInfo vertex_input_info;
-	VkPipelineInputAssemblyStateCreateInfo input_assembly;
-	VkPipelineRasterizationStateCreateInfo rasterizer;
-	VkPipelineColorBlendAttachmentState color_blend_attachment;
-	VkPipelineMultisampleStateCreateInfo multisampling;
-	VkPipelineLayout pipeline_layout;
+	static inline VkPipelineVertexInputStateCreateInfo vertex_input_info;
+	static inline VkPipelineInputAssemblyStateCreateInfo input_assembly;
+	static inline VkPipelineRasterizationStateCreateInfo rasterizer;
+	static inline VkPipelineColorBlendAttachmentState color_blend_attachment;
+	static inline VkPipelineMultisampleStateCreateInfo multisampling;
+	static inline VkPipelineLayout pipeline_layout;
 
-    void BuildShaderProgram(ShaderProgram& shader_program);
+    static inline DescriptorLayoutCache l_cache;
+
+    static void BuildShaderProgram(ShaderProgram& shader_program);
     
 };
