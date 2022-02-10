@@ -30,7 +30,6 @@ target_include_directories(NollaEngine PUBLIC
     Third-Party/vma/
     Third-Party/spirv-reflect/
     Third-Party/glm/
-    Third-Party/spdlog/include/
 
     Utils/
 
@@ -43,7 +42,10 @@ target_include_directories(NollaEngine PUBLIC
 
 add_subdirectory(Third-Party/glfw/)
 
+add_subdirectory(Third-Party/spdlog/)
+
 target_link_libraries(NollaEngine PRIVATE glfw)
+target_link_libraries(NollaEngine PRIVATE spdlog)
 
 file(COPY ${PROJECT_SOURCE_DIR}/Shaders DESTINATION ${PROJECT_BINARY_DIR})
 

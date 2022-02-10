@@ -24,5 +24,6 @@ public:
     static void Draw();
 
     static void EndRenderLayer();
+    static void DestroyBuffer();
     static void Destroy();
 };

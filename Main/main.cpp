@@ -37,6 +37,7 @@ int main(int argc, char* argv[])
             Renderer::EndRenderLayer();
         });    
     }
+    //Renderer::DestroyBuffer();
     Renderer::Destroy();
     Window::DestroyWindow();
     return 0;

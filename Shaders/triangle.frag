@@ -14,9 +14,13 @@ layout (set = 0, binding = 0) uniform test_descriptor {
 	vec4 color;
 }test_data;
 
+layout(set = 1, binding = 0) uniform another_test {
+    vec4 color;
+}test_data2;
+
 void main()
 {
 	//return red
-	outFragColor = vec4(test_data.color);
+	outFragColor = vec4(test_data.color - test_data2.color);
 }
 

@@ -50,6 +50,10 @@ void Renderer::EndRenderLayer() {
     VkContext::EndRenderLayer();
 }
 
+void Renderer::DestroyBuffer() {
+    VkContext::DestroyBuffer();
+}
+
 void Renderer::Destroy(){
     VkContext::DestroyContext();
 }

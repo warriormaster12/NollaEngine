@@ -72,14 +72,15 @@ void VkContext::CreateBuffer(size_t alloc_size, int usage) {
     if((VkBufferUsageFlags)usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT || VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
     {
         triangle_buffer =vktools::CreateBuffer(alloc_size, (VkBufferUsageFlags)usage, VMA_MEMORY_USAGE_CPU_TO_GPU);
-        DescriptorAllocator alloc;
         VkDescriptorBufferInfo info = {};
         info.buffer = triangle_buffer.buffer;
         info.range = alloc_size;
-        DescriptorBuilder builder = DescriptorBuilder::Begin(PipelineBuilder::l_cache, alloc);
         for(auto& current_set : triangle_program.descriptor_sets){
-            builder.BindBuffer(0, info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT);
-            builder.Build(current_set);
+            DescriptorBuilder builder = DescriptorBuilder::Begin(PipelineBuilder::l_cache, PipelineBuilder::d_alloc);
+            for (auto& current_binding : current_set.binding_info){
+                builder.BindBuffer(current_binding.binding, info, current_binding.descriptor_types, current_binding.shader_stage_flags);
+            }
+            builder.Build(current_set.set);
         }
     }
     //TODO: Vertex and Index buffer support
@@ -224,7 +225,7 @@ void VkContext::BindPushConstants(const void *p_values) {
 void VkContext::BindDescriptorSets() {
     auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
     for(int i = 0; i < triangle_program.descriptor_sets.size(); i++){
-        vkCmdBindDescriptorSets(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.layout, i, 1, &triangle_program.descriptor_sets[i], 0, 0);
+        vkCmdBindDescriptorSets(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.layout, i, 1, &triangle_program.descriptor_sets[i].set, 0, 0);
     }
 }
 
@@ -315,9 +316,15 @@ void VkContext::RecreateSwapchain() {
     SwapchainManager::Init();
 }
 
+void VkContext::DestroyBuffer() {
+    vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator,triangle_buffer.buffer,triangle_buffer.allocation);
+}
+
 void VkContext::DestroyContext() {
     vkDeviceWaitIdle(DeviceManager::GetVkDevice().device);
+    DestroyBuffer();
     triangle_program.DestroyProgram();
+    PipelineBuilder::CleanUp();
     CommandbufferManager::Destroy();
     SwapchainManager::DestroySwapchain();
     DeviceManager::Destroy();

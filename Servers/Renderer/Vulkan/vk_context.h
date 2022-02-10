@@ -19,6 +19,7 @@ public:
     static void Draw();
     static void EndRenderLayer();
     static void SubmitFrame();
+    static void DestroyBuffer();
     static void DestroyContext();
 private:
     static inline int frame_number = 0;

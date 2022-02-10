@@ -203,6 +203,15 @@ size_t DescriptorLayoutCache::DescriptorLayoutInfo::Hash() const{
     return result;
 }
 
+void DescriptorLayoutCache::CleanUp()
+{
+    //delete every descriptor layout held
+    for (auto pair : layout_cache)
+    {
+        vkDestroyDescriptorSetLayout(DeviceManager::GetVkDevice().device, pair.second, nullptr);
+    }
+}
+
 DescriptorBuilder DescriptorBuilder::Begin(DescriptorLayoutCache &layoutCache, DescriptorAllocator &allocator) {
     DescriptorBuilder builder;
 
