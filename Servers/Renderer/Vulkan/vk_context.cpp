@@ -1,6 +1,5 @@
 #include "vk_context.h"
 
-#include "glm/fwd.hpp"
 #include "logger.h"
 #include "vk_descriptors.h"
 #include "vk_device.h"
@@ -13,17 +12,22 @@
 
 #include "window.h"
 #include <vector>
+#include "utils.h"
 
 
 
 
+struct ShaderProgramInfo {
+    ShaderProgram program;
+    std::vector<vktools::AllocatedBuffer> alloc_buffers = {};
+    std::vector<VkDescriptorBufferInfo> buffer_infos = {};
+};
 
-static ShaderProgram triangle_program;
-static vktools::AllocatedBuffer triangle_buffer;
+
+static std::unordered_map<std::string,ShaderProgramInfo> shader_program;
 
 
 void VkContext::InitContext() {
-
     DeviceManager::Init();
     SwapchainManager::Init();
     CommandbufferManager::Init();
@@ -31,59 +35,71 @@ void VkContext::InitContext() {
     ENGINE_CORE_INFO("vulkan context created");
 }
 
-void VkContext::CreatePipeline(std::vector<std::string> filepaths) {
-    for (int i = 0; i < filepaths.size(); i++)
-    {
-        ShaderPass shader_pass;
-        shader_pass.filepath = filepaths[i];
-        if(!ShaderProgramBuilder::LoadShaderModule(i, shader_pass)) {
-            ENGINE_CORE_ERROR("failed to load shader program: {0}", shader_pass.filepath);
+void VkContext::CreatePipeline(const std::string& pipeline_name, std::vector<std::string> filepaths) {
+    if(utils::FindUnorderedMap(pipeline_name, shader_program) == nullptr) {
+        shader_program[pipeline_name];
+        auto& program = utils::FindUnorderedMap(pipeline_name, shader_program)->program;
+        for (int i = 0; i < filepaths.size(); i++)
+        {
+            ShaderPass shader_pass;
+            shader_pass.filepath = filepaths[i];
+            if(!ShaderProgramBuilder::LoadShaderModule(i, shader_pass)) {
+                ENGINE_CORE_ERROR("failed to load shader program: {0}", shader_pass.filepath);
+            }
+            else {
+                ENGINE_CORE_INFO("succefully loaded shader program: {0}", shader_pass.filepath);
+            }
+            program.passes.push_back(shader_pass);
         }
-        else {
-            ENGINE_CORE_INFO("succefully loaded shader program: {0}", shader_pass.filepath);
-        }
-        triangle_program.passes.push_back(shader_pass);
-    }
 
-    //build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
-	PipelineBuilder pipeline_builder;
+        //build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
+        PipelineBuilder pipeline_builder;
 
-	//vertex input controls how to read vertices from vertex buffers. We aren't using it yet
-	PipelineBuilder::vertex_input_info = vkdefaults::VertexInputStateCreateInfo();
+        //vertex input controls how to read vertices from vertex buffers. We aren't using it yet
+        PipelineBuilder::vertex_input_info = vkdefaults::VertexInputStateCreateInfo();
 
-	//input assembly is the configuration for drawing triangle lists, strips, or individual points.
-	//we are just going to draw triangle list
-	PipelineBuilder::input_assembly = vkdefaults::InputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        //input assembly is the configuration for drawing triangle lists, strips, or individual points.
+        //we are just going to draw triangle list
+        PipelineBuilder::input_assembly = vkdefaults::InputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
-	//configure the rasterizer to draw filled triangles
-	PipelineBuilder::rasterizer = vkdefaults::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+        //configure the rasterizer to draw filled triangles
+        PipelineBuilder::rasterizer = vkdefaults::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
 
-	//we don't use multisampling, so just run the default one
-	PipelineBuilder::multisampling = vkdefaults::MultisamplingStateCreateInfo();
+        //we don't use multisampling, so just run the default one
+        PipelineBuilder::multisampling = vkdefaults::MultisamplingStateCreateInfo();
 
-	//a single blend attachment with no blending and writing to RGBA
-	PipelineBuilder::color_blend_attachment = vkdefaults::ColorBlendAttachmentState();
+        //a single blend attachment with no blending and writing to RGBA
+        PipelineBuilder::color_blend_attachment = vkdefaults::ColorBlendAttachmentState();
 
-	//finally build the pipeline
-	PipelineBuilder::BuildShaderProgram(triangle_program);    
+        //finally build the pipeline
+        PipelineBuilder::BuildShaderProgram(program); 
+    }   
 }
 
-void VkContext::CreateBuffer(size_t alloc_size, int usage) {
+void VkContext::CreateBuffer(const std::string& pipeline_name,size_t alloc_size, int usage) {
     if((VkBufferUsageFlags)usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT || VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
     {
-        triangle_buffer =vktools::CreateBuffer(alloc_size, (VkBufferUsageFlags)usage, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
+        auto alloc_buffer = vktools::CreateBuffer(alloc_size, (VkBufferUsageFlags)usage, VMA_MEMORY_USAGE_CPU_TO_GPU);
         VkDescriptorBufferInfo info = {};
-        info.buffer = triangle_buffer.buffer;
+        info.buffer = alloc_buffer.buffer;
         info.range = alloc_size;
-        for(auto& current_set : triangle_program.descriptor_sets){
-            DescriptorBuilder builder = DescriptorBuilder::Begin(PipelineBuilder::l_cache, PipelineBuilder::d_alloc);
-            for (auto& current_binding : current_set.binding_info){
-                builder.BindBuffer(current_binding.binding, info, current_binding.descriptor_types, current_binding.shader_stage_flags);
-            }
-            builder.Build(current_set.set);
-        }
+
+        program.buffer_infos.push_back(info);
+        program.alloc_buffers.push_back(alloc_buffer);
     }
     //TODO: Vertex and Index buffer support
+}
+
+void VkContext::BuildDescriptors(const std::string& pipeline_name) {
+    auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
+    for(auto& current_set : program.program.descriptor_sets){
+        program.program.descriptor_builder = DescriptorBuilder::Begin(PipelineBuilder::l_cache, PipelineBuilder::d_alloc);
+        for (auto& current_binding : current_set.binding_info){
+            program.program.descriptor_builder.BindBuffer(current_binding.binding, program.buffer_infos[current_binding.binding], current_binding.descriptor_types, current_binding.shader_stage_flags);
+        }
+        program.program.descriptor_builder.Build(current_set.set);
+    }
 }
 
 void VkContext::PrepareFrame() {
@@ -180,52 +196,64 @@ void VkContext::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
 }
 
 
-void VkContext::UpdateBuffer(void* data, size_t data_size) {
+void VkContext::UpdateBuffer(const std::string& pipeline_name, int index, void* data, size_t data_size) {
+
+    auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
     //and copy it to the buffer
 	void* p_data;
-	vmaMapMemory(DeviceManager::GetVkDevice().allocator, triangle_buffer.allocation, &p_data);
+	vmaMapMemory(DeviceManager::GetVkDevice().allocator, program.alloc_buffers[index].allocation, &p_data);
 
 	memcpy(p_data, data, data_size);
 
-	vmaUnmapMemory(DeviceManager::GetVkDevice().allocator, triangle_buffer.allocation);
+	vmaUnmapMemory(DeviceManager::GetVkDevice().allocator, program.alloc_buffers[index].allocation);
 }
 
-void VkContext::BindPipeline() {
+void VkContext::BindPipeline(const std::string& pipeline_name) {
 
+    current_pipeline = pipeline_name;
     auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
 
-    triangle_program.viewport.width = SwapchainManager::GetVkSwapchain().swapchain_extent.width;
-    triangle_program.viewport.height = SwapchainManager::GetVkSwapchain().swapchain_extent.height;
-    triangle_program.viewport.x = 0.0f;
-    triangle_program.viewport.y = 0.0f;
-    triangle_program.viewport.minDepth = 0.0f;
-    triangle_program.viewport.maxDepth = 1.0f;
+    auto& program = utils::FindUnorderedMap(current_pipeline, shader_program)->program;
+
+    program.viewport.width = SwapchainManager::GetVkSwapchain().swapchain_extent.width;
+    program.viewport.height = SwapchainManager::GetVkSwapchain().swapchain_extent.height;
+    program.viewport.x = 0.0f;
+    program.viewport.y = 0.0f;
+    program.viewport.minDepth = 0.0f;
+    program.viewport.maxDepth = 1.0f;
     
-    triangle_program.scissor.extent = SwapchainManager::GetVkSwapchain().swapchain_extent;
-    triangle_program.scissor.offset = {0, 0};
+    program.scissor.extent = SwapchainManager::GetVkSwapchain().swapchain_extent;
+    program.scissor.offset = {0, 0};
 
-    vkCmdSetViewport(current_frame.main_command_buffer, 0, 1, &triangle_program.viewport);
-    vkCmdSetScissor(current_frame.main_command_buffer, 0, 1, &triangle_program.scissor);
+    vkCmdSetViewport(current_frame.main_command_buffer, 0, 1, &program.viewport);
+    vkCmdSetScissor(current_frame.main_command_buffer, 0, 1, &program.scissor);
 
-    vkCmdBindPipeline(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.pipeline);
+    vkCmdBindPipeline(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, program.pipeline);
 
 }
 
 void VkContext::BindPushConstants(const void *p_values) {
     auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
-    if(triangle_program.push_constants.size() > 0)
+    auto& program = utils::FindUnorderedMap(current_pipeline, shader_program)->program;
+    if(program.push_constants.size() > 0)
     {
-        for(auto& current_pconstant: triangle_program.push_constants)
+        for(auto& current_pconstant: program.push_constants)
         {
-            vkCmdPushConstants(current_frame.main_command_buffer, triangle_program.layout, current_pconstant.stageFlags, 0, current_pconstant.size, p_values);
+            vkCmdPushConstants(current_frame.main_command_buffer, program.layout, current_pconstant.stageFlags, 0, current_pconstant.size, p_values);
         }
     }
 }
 
 void VkContext::BindDescriptorSets() {
     auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
-    for(int i = 0; i < triangle_program.descriptor_sets.size(); i++){
-        vkCmdBindDescriptorSets(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, triangle_program.layout, i, 1, &triangle_program.descriptor_sets[i].set, 0, 0);
+    auto& program = utils::FindUnorderedMap(current_pipeline, shader_program)->program;
+    for(int i = 0; i < program.descriptor_sets.size(); i++){
+        if(program.descriptor_sets[i].set == VK_NULL_HANDLE){
+            program.descriptor_builder.Build(program.descriptor_sets[i].set);
+        }
+        else {
+            vkCmdBindDescriptorSets(current_frame.main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, program.layout, i, 1, &program.descriptor_sets[i].set, 0, 0);
+        }
     }
 }
 
@@ -316,14 +344,16 @@ void VkContext::RecreateSwapchain() {
     SwapchainManager::Init();
 }
 
-void VkContext::DestroyBuffer() {
-    vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator,triangle_buffer.buffer,triangle_buffer.allocation);
+void VkContext::DestroyBuffer(const std::string& pipeline_name, int index) {
+    auto& buffer = utils::FindUnorderedMap(pipeline_name, shader_program)->alloc_buffers[index];
+    vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator,buffer.buffer,buffer.allocation);
 }
 
 void VkContext::DestroyContext() {
     vkDeviceWaitIdle(DeviceManager::GetVkDevice().device);
-    DestroyBuffer();
-    triangle_program.DestroyProgram();
+    DestroyBuffer("triangle", 0);
+    auto& program = utils::FindUnorderedMap("triangle", shader_program)->program;
+    program.DestroyProgram();
     PipelineBuilder::CleanUp();
     CommandbufferManager::Destroy();
     SwapchainManager::DestroySwapchain();

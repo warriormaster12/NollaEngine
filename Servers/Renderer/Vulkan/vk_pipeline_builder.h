@@ -55,6 +55,8 @@ struct ShaderProgram {
 
     std::vector<DescriptorInfo> descriptor_sets;
 
+    DescriptorBuilder descriptor_builder;
+
     void DestroyProgram();
 };
 

@@ -16,8 +16,11 @@ int main(int argc, char* argv[])
     Logger::Init();
     Window::CreateNewWindow();
     Renderer::Init();
-    Renderer::CreateShaderProgram({"Shaders/triangle_vert.spv", "Shaders/triangle_frag.spv"});
-    Renderer::CreateBuffer(sizeof(TestBufferData), UNIFORM);
+    Renderer::CreateShaderProgram("triangle",{"Shaders/triangle_vert.spv", "Shaders/triangle_frag.spv"});
+    Renderer::CreateBuffer("triangle",sizeof(TestBufferData), UNIFORM);
+    Renderer::BuildDescriptors("triangle");
+    Renderer::CreateBuffer("triangle",sizeof(TestBufferData), UNIFORM);
+    Renderer::BuildDescriptors("triangle");
     while (Window::GetWindowStatus()) {
         Renderer::InsertDrawCalls([](){
             Renderer::BeginNewRenderLayer({0.0f, 1.0f, 0.0f, 1.0f}, 1.0f);
@@ -29,8 +32,12 @@ int main(int argc, char* argv[])
             data.color = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
             TestBufferData test_data;
             test_data.color = glm::vec4(1.0f, 0.5f ,0.25f,1.0f);
-            Renderer::UpdateBuffer(&test_data, sizeof(TestBufferData));
-            Renderer::BindShaderProgram();
+
+            TestBufferData test_data2;
+            test_data2.color = glm::vec4(0.1f, 0.1f ,0.1f,0.0f);
+            Renderer::UpdateBuffer("triangle", 0, &test_data, sizeof(TestBufferData));
+            Renderer::UpdateBuffer("triangle", 1, &test_data2, sizeof(TestBufferData));
+            Renderer::BindShaderProgram("triangle");
             Renderer::BindPushConstants(&data);
             Renderer::BindDescriptorSets();
             Renderer::Draw();
