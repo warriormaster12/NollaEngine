@@ -30,6 +30,8 @@ namespace vktools {
 	struct AllocatedBuffer {
 		VkBuffer buffer;
 		VmaAllocation allocation;
+
+		VkDescriptorBufferInfo buffer_info;
 	};
 
 	void InsertImageMemoryBarrier(

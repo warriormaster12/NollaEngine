@@ -19,8 +19,9 @@
 
 struct ShaderProgramInfo {
     ShaderProgram program;
-    std::vector<vktools::AllocatedBuffer> alloc_buffers = {};
-    std::vector<VkDescriptorBufferInfo> buffer_infos = {};
+
+    std::unordered_map<int,std::vector<vktools::AllocatedBuffer>> alloc_buffers = {};
+
 };
 
 
@@ -76,7 +77,7 @@ void VkContext::CreatePipeline(const std::string& pipeline_name, std::vector<std
     }   
 }
 
-void VkContext::CreateBuffer(const std::string& pipeline_name,size_t alloc_size, int usage) {
+void VkContext::CreateBuffer(const std::string& pipeline_name, int set_index, size_t alloc_size, int usage) {
     if((VkBufferUsageFlags)usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT || VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
     {
         auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
@@ -85,20 +86,29 @@ void VkContext::CreateBuffer(const std::string& pipeline_name,size_t alloc_size,
         info.buffer = alloc_buffer.buffer;
         info.range = alloc_size;
 
-        program.buffer_infos.push_back(info);
-        program.alloc_buffers.push_back(alloc_buffer);
+        
+        if(utils::FindUnorderedMap(set_index, program.alloc_buffers) == nullptr){
+            program.alloc_buffers[set_index];
+        }
+        auto& buffers = *utils::FindUnorderedMap(set_index, program.alloc_buffers);
+        buffers.push_back(alloc_buffer);
+        buffers.back().buffer_info = info;
     }
     //TODO: Vertex and Index buffer support
 }
 
 void VkContext::BuildDescriptors(const std::string& pipeline_name) {
     auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
+    int set_index = 0;
     for(auto& current_set : program.program.descriptor_sets){
         program.program.descriptor_builder = DescriptorBuilder::Begin(PipelineBuilder::l_cache, PipelineBuilder::d_alloc);
         for (auto& current_binding : current_set.binding_info){
-            program.program.descriptor_builder.BindBuffer(current_binding.binding, program.buffer_infos[current_binding.binding], current_binding.descriptor_types, current_binding.shader_stage_flags);
+            auto& buffers = *utils::FindUnorderedMap(set_index, program.alloc_buffers);
+            program.program.descriptor_builder.BindBuffer(current_binding.binding, buffers[current_binding.binding].buffer_info, current_binding.descriptor_types, current_binding.shader_stage_flags);
         }
         program.program.descriptor_builder.Build(current_set.set);
+
+        set_index ++;
     }
 }
 
@@ -196,16 +206,17 @@ void VkContext::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
 }
 
 
-void VkContext::UpdateBuffer(const std::string& pipeline_name, int index, void* data, size_t data_size) {
+void VkContext::UpdateBuffer(const std::string& pipeline_name, int set_index,int binding, void* data, size_t data_size) {
 
     auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
+    auto& alloc_buffers = *utils::FindUnorderedMap(set_index, program.alloc_buffers);
     //and copy it to the buffer
 	void* p_data;
-	vmaMapMemory(DeviceManager::GetVkDevice().allocator, program.alloc_buffers[index].allocation, &p_data);
+	vmaMapMemory(DeviceManager::GetVkDevice().allocator, alloc_buffers[binding].allocation, &p_data);
 
 	memcpy(p_data, data, data_size);
 
-	vmaUnmapMemory(DeviceManager::GetVkDevice().allocator, program.alloc_buffers[index].allocation);
+	vmaUnmapMemory(DeviceManager::GetVkDevice().allocator, alloc_buffers[binding].allocation);
 }
 
 void VkContext::BindPipeline(const std::string& pipeline_name) {
@@ -344,16 +355,24 @@ void VkContext::RecreateSwapchain() {
     SwapchainManager::Init();
 }
 
-void VkContext::DestroyBuffer(const std::string& pipeline_name, int index) {
-    auto& buffer = utils::FindUnorderedMap(pipeline_name, shader_program)->alloc_buffers[index];
-    vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator,buffer.buffer,buffer.allocation);
+void VkContext::DestroyBuffer(const std::string& pipeline_name, int set_index, int index) {
+    auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
+    auto& buffers = *utils::FindUnorderedMap(set_index, program.alloc_buffers);
+    vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator,buffers[index].buffer, buffers[index].allocation);
 }
 
 void VkContext::DestroyContext() {
     vkDeviceWaitIdle(DeviceManager::GetVkDevice().device);
-    DestroyBuffer("triangle", 0);
-    auto& program = utils::FindUnorderedMap("triangle", shader_program)->program;
-    program.DestroyProgram();
+    auto& program = *utils::FindUnorderedMap("triangle", shader_program);
+    for(int i = 0; i < program.program.descriptor_sets.size(); i++) {
+        if(utils::FindUnorderedMap(i, program.alloc_buffers) != nullptr){
+            auto& buffers = *utils::FindUnorderedMap(i, program.alloc_buffers);
+            for(int i_buffers = 0; i < buffers.size(); i_buffers++) {
+                DestroyBuffer("triangle", i,i_buffers);
+            }
+        }
+    }
+    program.program.DestroyProgram();
     PipelineBuilder::CleanUp();
     CommandbufferManager::Destroy();
     SwapchainManager::DestroySwapchain();

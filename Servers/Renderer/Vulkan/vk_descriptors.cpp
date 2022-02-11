@@ -306,5 +306,3 @@ bool DescriptorBuilder::Build(VkDescriptorSet& set){
 }
 
 
-
-
