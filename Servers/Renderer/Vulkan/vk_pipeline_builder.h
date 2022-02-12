@@ -72,7 +72,7 @@ public:
     //descriptor set layout cache object
     static inline DescriptorLayoutCache l_cache;
     //descriptor set allocator object
-    static inline std::vector<DescriptorAllocator> d_alloc;
+    static inline DescriptorAllocator d_alloc;
 
     static void BuildShaderProgram(ShaderProgram& shader_program);
 

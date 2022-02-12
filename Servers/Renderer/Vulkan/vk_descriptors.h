@@ -83,8 +83,8 @@ private:
 	std::vector<VkWriteDescriptorSet> writes;
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-	std::unique_ptr<DescriptorLayoutCache> cache;
-	std::unique_ptr<DescriptorAllocator> alloc;
+	DescriptorLayoutCache* cache = nullptr;
+	DescriptorAllocator* alloc = nullptr;
 };
 
 

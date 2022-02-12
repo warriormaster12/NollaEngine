@@ -215,8 +215,8 @@ void DescriptorLayoutCache::CleanUp()
 DescriptorBuilder DescriptorBuilder::Begin(DescriptorLayoutCache &layoutCache, DescriptorAllocator &allocator) {
     DescriptorBuilder builder;
 
-    builder.cache = std::make_unique<DescriptorLayoutCache>(layoutCache);
-    builder.alloc = std::make_unique<DescriptorAllocator>(allocator);
+    builder.cache = &layoutCache;
+    builder.alloc = &allocator;
     return builder;
 }
 
@@ -296,6 +296,9 @@ bool DescriptorBuilder::Build(VkDescriptorSet& set, VkDescriptorSetLayout& layou
 	}
 
 	vkUpdateDescriptorSets(DeviceManager::GetVkDevice().device, writes.size(), writes.data(), 0, nullptr);
+
+    bindings.clear();
+    writes.clear();
 
 	return true;
 }

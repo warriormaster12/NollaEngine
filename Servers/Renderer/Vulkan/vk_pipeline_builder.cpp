@@ -236,7 +236,5 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
 
 void PipelineBuilder::CleanUp() {
     l_cache.CleanUp();
-    for(auto& current : d_alloc){
-        current.CleanUp();
-    }
+    d_alloc.CleanUp();
 }
