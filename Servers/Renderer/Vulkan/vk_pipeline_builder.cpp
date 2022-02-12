@@ -17,6 +17,7 @@
 
 
 
+
 bool ShaderProgramBuilder::LoadShaderModule(int index, ShaderPass& out_shader_pass) {
 
     auto& device = DeviceManager::GetVkDevice().device;
@@ -234,6 +235,8 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
 }
 
 void PipelineBuilder::CleanUp() {
-    d_alloc.CleanUp();
     l_cache.CleanUp();
+    for(auto& current : d_alloc){
+        current.CleanUp();
+    }
 }

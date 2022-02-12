@@ -5,15 +5,6 @@
 
 
 
-void DescriptorAllocator::CleanUp() { 
-    for (auto& pool : free_pools){
-        vkDestroyDescriptorPool(DeviceManager::GetVkDevice().device, pool, nullptr);
-    }
-    for (auto& pool : used_pools){
-        vkDestroyDescriptorPool(DeviceManager::GetVkDevice().device, pool, nullptr);
-    }
-}
-
 
 VkDescriptorPool CreatePool(const DescriptorAllocator::PoolSizes& pool_sizes, int count, VkDescriptorPoolCreateFlags flags) {
     std::vector<VkDescriptorPoolSize> sizes;
@@ -116,6 +107,15 @@ void DescriptorAllocator::ResetPools(){
 
 	//reset the current pool handle back to null
 	current_pool = VK_NULL_HANDLE;
+}
+
+void DescriptorAllocator::CleanUp() { 
+    for (int i = 0; i < free_pools.size(); i++){
+        vkDestroyDescriptorPool(DeviceManager::GetVkDevice().device, free_pools[i], nullptr);
+    }
+    for (int i = 0; i < used_pools.size(); i++){
+        vkDestroyDescriptorPool(DeviceManager::GetVkDevice().device, used_pools[i], nullptr);
+    }
 }
 
 
@@ -304,5 +304,6 @@ bool DescriptorBuilder::Build(VkDescriptorSet& set){
 	VkDescriptorSetLayout layout;
 	return Build(set, layout);
 }
+
 
 

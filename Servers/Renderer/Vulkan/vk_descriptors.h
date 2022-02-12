@@ -77,6 +77,7 @@ public:
 
 	bool Build(VkDescriptorSet& set, VkDescriptorSetLayout& layout);
 	bool Build(VkDescriptorSet& set);
+
 private:
 
 	std::vector<VkWriteDescriptorSet> writes;

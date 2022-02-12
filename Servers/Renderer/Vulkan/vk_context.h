@@ -21,6 +21,7 @@ public:
     static void Draw();
     static void EndRenderLayer();
     static void SubmitFrame();
+    static void DestroyPipeline(const std::string& pipeline_name);
     static void DestroyBuffer(const std::string& pipeline_name, int set_index, int index);
     static void DestroyContext();
 private:

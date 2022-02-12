@@ -43,7 +43,9 @@ int main(int argc, char* argv[])
             Renderer::EndRenderLayer();
         });    
     }
-    //Renderer::DestroyBuffer();
+    Renderer::DestroyBuffer("triangle", 0,0);
+    Renderer::DestroyBuffer("triangle", 1,0);
+    Renderer::DestroyShaderProgram("triangle");
     Renderer::Destroy();
     Window::DestroyWindow();
     return 0;

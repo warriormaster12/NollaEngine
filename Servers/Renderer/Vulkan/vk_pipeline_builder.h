@@ -4,7 +4,7 @@
 
 #include <string>
 #include <vector>
-#include <vulkan/vulkan_core.h>
+#include <memory>
 
 #include "spirv_reflect.h"
 
@@ -72,7 +72,7 @@ public:
     //descriptor set layout cache object
     static inline DescriptorLayoutCache l_cache;
     //descriptor set allocator object
-    static inline DescriptorAllocator d_alloc;
+    static inline std::vector<DescriptorAllocator> d_alloc;
 
     static void BuildShaderProgram(ShaderProgram& shader_program);
 

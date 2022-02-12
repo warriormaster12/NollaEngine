@@ -26,6 +26,7 @@ struct ShaderProgramInfo {
 
 
 static std::unordered_map<std::string,ShaderProgramInfo> shader_program;
+static utils::FunctionQueuer deletion_queuer;
 
 
 void VkContext::InitContext() {
@@ -100,8 +101,9 @@ void VkContext::CreateBuffer(const std::string& pipeline_name, int set_index, si
 void VkContext::BuildDescriptors(const std::string& pipeline_name) {
     auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
     int set_index = 0;
+    PipelineBuilder::d_alloc.resize(program.program.descriptor_sets.size());
     for(auto& current_set : program.program.descriptor_sets){
-        program.program.descriptor_builder = DescriptorBuilder::Begin(PipelineBuilder::l_cache, PipelineBuilder::d_alloc);
+        program.program.descriptor_builder = DescriptorBuilder::Begin(PipelineBuilder::l_cache, PipelineBuilder::d_alloc[set_index]);
         for (auto& current_binding : current_set.binding_info){
             auto& buffers = *utils::FindUnorderedMap(set_index, program.alloc_buffers);
             program.program.descriptor_builder.BindBuffer(current_binding.binding, buffers[current_binding.binding].buffer_info, current_binding.descriptor_types, current_binding.shader_stage_flags);
@@ -355,24 +357,26 @@ void VkContext::RecreateSwapchain() {
     SwapchainManager::Init();
 }
 
+void VkContext::DestroyPipeline(const std::string& pipeline_name) {
+    deletion_queuer.PushFunction([=]{
+        auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
+        program.program.DestroyProgram();
+        shader_program.erase(pipeline_name);
+    });
+}
+
 void VkContext::DestroyBuffer(const std::string& pipeline_name, int set_index, int index) {
     auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
     auto& buffers = *utils::FindUnorderedMap(set_index, program.alloc_buffers);
-    vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator,buffers[index].buffer, buffers[index].allocation);
+    deletion_queuer.PushFunction([=]{
+        vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator,buffers[index].buffer, buffers[index].allocation);
+    });
+    
 }
 
 void VkContext::DestroyContext() {
     vkDeviceWaitIdle(DeviceManager::GetVkDevice().device);
-    auto& program = *utils::FindUnorderedMap("triangle", shader_program);
-    for(int i = 0; i < program.program.descriptor_sets.size(); i++) {
-        if(utils::FindUnorderedMap(i, program.alloc_buffers) != nullptr){
-            auto& buffers = *utils::FindUnorderedMap(i, program.alloc_buffers);
-            for(int i_buffers = 0; i < buffers.size(); i_buffers++) {
-                DestroyBuffer("triangle", i,i_buffers);
-            }
-        }
-    }
-    program.program.DestroyProgram();
+    deletion_queuer.Flush();
     PipelineBuilder::CleanUp();
     CommandbufferManager::Destroy();
     SwapchainManager::DestroySwapchain();

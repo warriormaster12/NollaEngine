@@ -54,8 +54,12 @@ void Renderer::EndRenderLayer() {
     VkContext::EndRenderLayer();
 }
 
-void Renderer::DestroyBuffer(const std::string& pipeline_name,int set_index, int index) {
-    VkContext::DestroyBuffer(pipeline_name, set_index,index);
+void Renderer::DestroyShaderProgram(const std::string& shader_name) {
+    VkContext::DestroyPipeline(shader_name);
+}
+
+void Renderer::DestroyBuffer(const std::string& shader_name,int set_index, int index) {
+    VkContext::DestroyBuffer(shader_name, set_index,index);
 }
 
 void Renderer::Destroy(){
