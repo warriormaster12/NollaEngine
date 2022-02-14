@@ -8,9 +8,12 @@
 
 
 
+#include <algorithm>
 #include <cstddef>
 #include <fstream>
 #include <filesystem>
+#include <iterator>
+#include <unordered_map>
 #include <vector>
 
 
@@ -84,26 +87,23 @@ void ShaderProgram::DestroyProgram() {
 
 
 void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
-
+    //TODO: make spirv-reflection code into it's own function
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages = {};
-    
-    std::vector<VkDescriptorSetLayout> descriptor_layouts = {};
+    std::vector<int> set_numbers;
+    std::vector<DescriptorSetLayoutData> descriptor_layouts = {};
     for(auto& current_pass: shader_program.passes) {
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumerateDescriptorSets(&current_pass.spv_module, &count, NULL);
         assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
         std::vector<SpvReflectDescriptorSet*> sets(count);
         result = spvReflectEnumerateDescriptorSets(&current_pass.spv_module, &count, sets.data());
         assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
         std::vector<DescriptorSetLayoutData> set_layouts(sets.size(), DescriptorSetLayoutData{});
-        shader_program.descriptor_sets.resize(sets.size());
         for (size_t i_set = 0; i_set < sets.size(); ++i_set) {
             const SpvReflectDescriptorSet& refl_set = *(sets[i_set]);
             DescriptorSetLayoutData& layout = set_layouts[i_set];
             layout.bindings.resize(refl_set.binding_count);
-            shader_program.descriptor_sets[i_set].binding_info.resize(refl_set.binding_count);
             for (uint32_t i_binding = 0; i_binding < refl_set.binding_count; ++i_binding) {
                 const SpvReflectDescriptorBinding& refl_binding = *(refl_set.bindings[i_binding]);
                 VkDescriptorSetLayoutBinding& layout_binding = layout.bindings[i_binding];
@@ -114,17 +114,82 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
                     layout_binding.descriptorCount *= refl_binding.array.dims[i_dim];
                 }
                 layout_binding.stageFlags = static_cast<VkShaderStageFlagBits>(current_pass.spv_module.shader_stage);
-                shader_program.descriptor_sets[i_set].binding_info[i_binding].shader_stage_flags = layout_binding.stageFlags;
-                shader_program.descriptor_sets[i_set].binding_info[i_binding].descriptor_types = layout_binding.descriptorType;
-                shader_program.descriptor_sets[i_set].binding_info[i_binding].binding = i_binding;
             }
+
+            set_numbers.push_back(refl_set.set);
             layout.set_number = refl_set.set;
             layout.create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             layout.create_info.bindingCount = refl_set.binding_count;
             layout.create_info.pBindings = layout.bindings.data();
             
-            descriptor_layouts.push_back(l_cache.CreateDescriptorLayout(layout.create_info));
+            descriptor_layouts.push_back(layout);
         }
+    }
+    
+    std::sort(set_numbers.begin(), set_numbers.end());
+    std::vector<int>::iterator iterator;
+    iterator = std::unique(set_numbers.begin(), set_numbers.end());
+
+    set_numbers.resize(std::distance(set_numbers.begin(), iterator));
+
+    std::vector<DescriptorSetLayoutData> merged_layouts;
+    merged_layouts.resize(set_numbers.size());
+	std::vector<VkDescriptorSetLayout> layouts;
+	for (int i = 0; i < merged_layouts.size(); i++) {
+		DescriptorSetLayoutData &ly = merged_layouts[i];
+
+		ly.set_number = i;
+
+		ly.create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+
+		std::unordered_map<int,VkDescriptorSetLayoutBinding> binds;
+		for (auto& s : descriptor_layouts) {
+			if (s.set_number == i) {
+				for (auto& b : s.bindings)
+				{
+					auto it = binds.find(b.binding);
+					if (it == binds.end())
+					{
+						binds[b.binding] = b;
+						//ly.bindings.push_back(b);
+					}
+					else {
+						//merge flags
+						binds[b.binding].stageFlags |= b.stageFlags;
+					}
+					
+				}
+			}
+		}
+		for (auto [k, v] : binds)
+		{
+			ly.bindings.push_back(v);
+		}
+		//sort the bindings, for hash purposes
+		std::sort(ly.bindings.begin(), ly.bindings.end(), [](VkDescriptorSetLayoutBinding& a, VkDescriptorSetLayoutBinding& b) {			
+			return a.binding < b.binding;
+		});
+
+
+		ly.create_info.bindingCount = (uint32_t)ly.bindings.size();
+		ly.create_info.pBindings = ly.bindings.data();
+		ly.create_info.flags = 0;
+		ly.create_info.pNext = 0;
+		
+
+		layouts.push_back(l_cache.CreateDescriptorLayout(ly.create_info));
+	}
+
+    for(auto& layout : merged_layouts) {
+        DescriptorInfo descriptor_info;
+        descriptor_info.binding_info.resize(layout.bindings.size());
+        for(int i = 0; i < layout.bindings.size(); i++) { 
+            descriptor_info.binding_info[i].shader_stage_flags = layout.bindings[i].stageFlags;
+            descriptor_info.binding_info[i].descriptor_types = layout.bindings[i].descriptorType;
+            descriptor_info.binding_info[i].binding = layout.bindings[i].binding;
+        }
+
+        shader_program.descriptor_sets.push_back(descriptor_info);
     }
     
 
@@ -150,8 +215,8 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
     VkPipelineLayoutCreateInfo pipeline_layout_info = vkdefaults::PipelineLayoutCreateInfo();
     pipeline_layout_info.pPushConstantRanges = shader_program.push_constants.data();
     pipeline_layout_info.pushConstantRangeCount = shader_program.push_constants.size();
-    pipeline_layout_info.pSetLayouts = descriptor_layouts.data();
-    pipeline_layout_info.setLayoutCount = descriptor_layouts.size();
+    pipeline_layout_info.pSetLayouts = layouts.data();
+    pipeline_layout_info.setLayoutCount = layouts.size();
 
 	VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &shader_program.layout));
 

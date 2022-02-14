@@ -10,17 +10,18 @@ layout( push_constant ) uniform constants
 	vec4 color;
 } TriangleData;
 
-layout (set = 0, binding = 0) uniform test_descriptor {
-	vec4 color;
-}test_data;
+layout (set = 0, binding = 0) uniform Camera {
+	mat4 render_matrix;
+}camera;
+
 
 layout(set = 1, binding = 0) uniform another_test {
     vec4 color;
-}test_data2;
+}test_data;
 
 void main()
 {
 	//return red
-	outFragColor = vec4(test_data.color - test_data2.color);
+	outFragColor = vec4(test_data.color);
 }
 
