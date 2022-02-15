@@ -1,6 +1,7 @@
 #include "vk_pipeline_builder.h"
 
 #include "logger.h"
+#include "spirv_reflect.h"
 #include "vk_device.h"
 #include "vk_defaults.h"
 #include "vk_swapchain.h"
@@ -18,6 +19,33 @@
 
 
 
+VertexInputDescription GetVertexDescription(std::vector<SpvReflectInterfaceVariable*> input_vars,uint32_t stride, std::vector<uint32_t> offsets)
+{
+	VertexInputDescription description;
+
+	//we will have just 1 vertex buffer binding, with a per-vertex rate
+	VkVertexInputBindingDescription mainBinding = {};
+	mainBinding.binding = 0;
+	mainBinding.stride = stride;
+	mainBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	description.bindings.push_back(mainBinding);
+
+    std::sort(input_vars.begin(), input_vars.end(),[](SpvReflectInterfaceVariable* a, SpvReflectInterfaceVariable* b) {
+        return a->location < b->location;
+    });
+	for(int i=0; i < input_vars.size(); i++) {
+        VkVertexInputAttributeDescription attribute = {};
+        attribute.binding = 0;
+        attribute.location = input_vars[i]->location;
+        attribute.format = (VkFormat)input_vars[i]->format;
+        attribute.offset = offsets[i];
+        description.attributes.push_back(attribute);
+    }
+
+    return description;
+}
+	
 
 
 
@@ -65,14 +93,6 @@ bool ShaderProgramBuilder::LoadShaderModule(int index, ShaderPass& out_shader_pa
     SpvReflectResult result = spvReflectCreateShaderModule(fileSize, buffer.data(), &out_shader_pass.spv_module);
     assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-    // Enumerate and extract shader's input variables
-    uint32_t var_count = 0;
-    result = spvReflectEnumerateInputVariables(&out_shader_pass.spv_module, &var_count, NULL);
-    assert(result == SPV_REFLECT_RESULT_SUCCESS);
-    SpvReflectInterfaceVariable** input_vars =
-    (SpvReflectInterfaceVariable**)malloc(var_count * sizeof(SpvReflectInterfaceVariable*));
-    result = spvReflectEnumerateInputVariables(&out_shader_pass.spv_module, &var_count, input_vars);
-    assert(result == SPV_REFLECT_RESULT_SUCCESS);
     if (vkCreateShaderModule(device, &createInfo, nullptr, &out_shader_pass.module) != VK_SUCCESS) {
         return false;
     }
@@ -219,6 +239,26 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
     pipeline_layout_info.setLayoutCount = layouts.size();
 
 	VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &shader_program.layout));
+
+    VertexInputDescription vertex_description = {};
+    for(auto& current_pass: shader_program.passes) {
+        if (current_pass.spv_module.shader_stage == (VkShaderStageFlags)VK_SHADER_STAGE_VERTEX_BIT) {
+            // Enumerate and extract shader's input variables
+            uint32_t var_count = 0;
+            SpvReflectResult result = spvReflectEnumerateInputVariables(&current_pass.spv_module, &var_count, NULL);
+            assert(result == SPV_REFLECT_RESULT_SUCCESS);
+            std::vector<SpvReflectInterfaceVariable*> input_vars(var_count);
+            result = spvReflectEnumerateInputVariables(&current_pass.spv_module, &var_count, input_vars.data());
+            assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+            vertex_description = GetVertexDescription(input_vars, stride,vertex_offsets);
+        }
+    }
+    
+    vertex_input_info.pVertexAttributeDescriptions = vertex_description.attributes.data();
+    vertex_input_info.vertexAttributeDescriptionCount = vertex_description.attributes.size();
+    vertex_input_info.pVertexBindingDescriptions = vertex_description.bindings.data(); 
+    vertex_input_info.vertexBindingDescriptionCount = vertex_description.bindings.size();
 
     //make viewport state from our stored viewport and scissor.
     //at the moment we won't support multiple viewports or scissors

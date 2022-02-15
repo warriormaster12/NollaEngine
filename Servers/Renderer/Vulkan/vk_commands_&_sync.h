@@ -14,6 +14,11 @@ struct PerFrameData {
     void CleanUp();
 };
 
+struct UploadContext {
+	VkFence upload_fence;
+	VkCommandPool command_pool;	
+};
+
 
 constexpr unsigned int FRAME_OVERLAP = 2;
 
@@ -25,10 +30,13 @@ public:
 
     static PerFrameData& GetCurrentFrame(int frame_number) { return per_frame_data[frame_number % FRAME_OVERLAP]; }
     static int GetFrameOverlap() {return FRAME_OVERLAP;}
+
+    static void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 private:
     static void BuildCommands();
     static void BuildSyncStructures();
 
     static inline PerFrameData per_frame_data[FRAME_OVERLAP];
+    static inline UploadContext upload_context;
     
 };

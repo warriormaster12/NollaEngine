@@ -6,13 +6,16 @@ void Renderer::Init() {
     VkContext::InitContext();
 }
 
-void Renderer::CreateShaderProgram(const std::string& shader_name,std::vector<std::string> filepaths) {
-    VkContext::CreatePipeline(shader_name,filepaths);
+void Renderer::CreateShaderProgram(const std::string& shader_name,std::vector<std::string> filepaths, uint32_t stride, std::vector<uint32_t> offsets) {
+    VkContext::CreatePipeline(shader_name,filepaths, stride, offsets);
 }
 
-void Renderer::CreateBuffer(const std::string& shader_name, int set_index,size_t alloc_size, BufferTypes usage) {
-    VkContext::CreateBuffer(shader_name,set_index,alloc_size, usage);
-    
+void Renderer::CreateDescriptorBuffer(const std::string& shader_name, int set_index,size_t alloc_size, BufferTypes usage) {
+    VkContext::CreateDescriptorBuffer(shader_name,set_index,alloc_size, usage);
+}
+
+void Renderer::CreateBuffer(const std::string& buffer_name, void* data, uint32_t stride, size_t alloc_size, BufferTypes usage) {
+    VkContext::CreateBuffer(buffer_name, data, stride,alloc_size, usage);   
 }
 void Renderer::BuildDescriptors(const std::string& shader_name) {
     VkContext::BuildDescriptors(shader_name);

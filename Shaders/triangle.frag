@@ -1,6 +1,8 @@
 //glsl version 4.5
 #version 450
 
+layout (location = 0) in vec3 inColor;
+
 //output write
 layout (location = 0) out vec4 outFragColor;
 
@@ -22,6 +24,6 @@ layout(set = 1, binding = 0) uniform another_test {
 void main()
 {
 	//return red
-	outFragColor = vec4(test_data.color);
+	outFragColor = vec4(inColor, 1.0f);
 }
 

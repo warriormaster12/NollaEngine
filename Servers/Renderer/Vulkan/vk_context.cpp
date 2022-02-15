@@ -28,6 +28,8 @@ struct ShaderProgramInfo {
 static std::unordered_map<std::string,ShaderProgramInfo> shader_program;
 static utils::FunctionQueuer deletion_queuer;
 
+static std::unordered_map<std::string, vktools::AllocatedBuffer> alloc_buffer;
+
 
 void VkContext::InitContext() {
     DeviceManager::Init();
@@ -37,7 +39,7 @@ void VkContext::InitContext() {
     ENGINE_CORE_INFO("vulkan context created");
 }
 
-void VkContext::CreatePipeline(const std::string& pipeline_name, std::vector<std::string> filepaths) {
+void VkContext::CreatePipeline(const std::string& pipeline_name, std::vector<std::string> filepaths, uint32_t stride, std::vector<uint32_t> offsets) {
     if(utils::FindUnorderedMap(pipeline_name, shader_program) == nullptr) {
         shader_program[pipeline_name];
         auto& program = utils::FindUnorderedMap(pipeline_name, shader_program)->program;
@@ -55,9 +57,10 @@ void VkContext::CreatePipeline(const std::string& pipeline_name, std::vector<std
         }
 
         //build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
-        PipelineBuilder pipeline_builder;
 
         //vertex input controls how to read vertices from vertex buffers. We aren't using it yet
+        PipelineBuilder::stride = stride;
+        PipelineBuilder::vertex_offsets = offsets;
         PipelineBuilder::vertex_input_info = vkdefaults::VertexInputStateCreateInfo();
 
         //input assembly is the configuration for drawing triangle lists, strips, or individual points.
@@ -78,7 +81,7 @@ void VkContext::CreatePipeline(const std::string& pipeline_name, std::vector<std
     }   
 }
 
-void VkContext::CreateBuffer(const std::string& pipeline_name, int set_index, size_t alloc_size, int usage) {
+void VkContext::CreateDescriptorBuffer(const std::string& pipeline_name, int set_index, size_t alloc_size, int usage) {
     if((VkBufferUsageFlags)usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT || VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
     {
         auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
@@ -95,7 +98,27 @@ void VkContext::CreateBuffer(const std::string& pipeline_name, int set_index, si
         buffers.push_back(alloc_buffer);
         buffers.back().buffer_info = info;
     }
-    //TODO: Vertex and Index buffer support
+}
+
+void VkContext::CreateBuffer(const std::string& buffer_name, void* data, uint32_t stride, size_t alloc_size, int usage) {
+    const size_t BUFFER_SIZE = alloc_size * stride;
+
+    vktools::AllocatedBuffer stagingBuffer = vktools::CreateBuffer(BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+
+    //copy data
+    vktools::UploadData(stagingBuffer.allocation, data, stride, alloc_size);
+
+    alloc_buffer[buffer_name] = vktools::CreateBuffer(BUFFER_SIZE,  (VkBufferUsageFlags)usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+    CommandbufferManager::ImmediateSubmit([=](VkCommandBuffer cmd) {
+        VkBufferCopy copy;
+        copy.dstOffset = 0;
+        copy.srcOffset = 0;
+        copy.size = BUFFER_SIZE;
+        vkCmdCopyBuffer(cmd, stagingBuffer.buffer, utils::FindUnorderedMap(buffer_name, alloc_buffer)->buffer, 1, & copy);
+    });
+
+    vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 }
 
 void VkContext::BuildDescriptors(const std::string& pipeline_name) {
@@ -272,6 +295,9 @@ void VkContext::BindDescriptorSets() {
 
 void VkContext::Draw() {
     auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
+    auto& current_buffer = utils::FindUnorderedMap("vertex", alloc_buffer)->buffer;
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(current_frame.main_command_buffer, 0, 1, &current_buffer, &offset);
     vkCmdDraw(current_frame.main_command_buffer, 3, 1, 0, 0);
 }
 

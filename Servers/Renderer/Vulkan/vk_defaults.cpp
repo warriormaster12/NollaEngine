@@ -178,24 +178,25 @@ namespace vkdefaults
 
     VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo(VkPolygonMode polygon_mode, VkCullModeFlags cull_mode /*= VK_CULL_MODE_BACK_BIT*/)
 	{
-		VkPipelineRasterizationStateCreateInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-		info.pNext = nullptr;
+		VkPipelineRasterizationStateCreateInfo info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .pNext = nullptr,
 
-		info.depthClampEnable = VK_FALSE;
-		//discards all primitives before the rasterization stage if enabled which we don't want
-		info.rasterizerDiscardEnable = VK_FALSE;
+            .depthClampEnable = VK_FALSE,
+            //discards all primitives before the rasterization stage if enabled which we don't want
+            .rasterizerDiscardEnable = VK_FALSE,
 
-		info.polygonMode = polygon_mode;
-		info.lineWidth = 1.0f;
-		//no backface cull
-		info.cullMode = cull_mode;
-		info.frontFace = VK_FRONT_FACE_CLOCKWISE;
-		//no depth bias
-		info.depthBiasEnable = VK_FALSE;
-		info.depthBiasConstantFactor = 0.0f;
-		info.depthBiasClamp = 0.0f;
-		info.depthBiasSlopeFactor = 0.0f;
+            .polygonMode = polygon_mode,
+            //no backface cull
+            .cullMode = cull_mode,
+            .frontFace = VK_FRONT_FACE_CLOCKWISE,
+            //no depth bias
+            .depthBiasEnable = VK_FALSE,
+            .depthBiasConstantFactor = 0.0f,
+            .depthBiasClamp = 0.0f,
+            .depthBiasSlopeFactor = 0.0f,
+            .lineWidth = 1.0f,
+        };
 
 		return info;
 	}
@@ -226,16 +227,15 @@ namespace vkdefaults
 	}
 
     VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo() {
-		VkPipelineLayoutCreateInfo info{};
-		info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		info.pNext = nullptr;
-
-		//empty defaults
-		info.flags = 0;
-		info.setLayoutCount = 0;
-		info.pSetLayouts = nullptr;
-		info.pushConstantRangeCount = 0;
-		info.pPushConstantRanges = nullptr;
+		VkPipelineLayoutCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .setLayoutCount = 0,
+            .pSetLayouts = nullptr,
+            .pushConstantRangeCount = 0,
+            .pPushConstantRanges = nullptr
+        };
 		return info;
 	}
 

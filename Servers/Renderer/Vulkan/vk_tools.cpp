@@ -45,3 +45,15 @@ vktools::AllocatedBuffer vktools::CreateBuffer(size_t alloc_size, VkBufferUsageF
 
 	return newBuffer;
 }
+
+void vktools::UploadData(const VmaAllocation& allocation, void* data, uint32_t data_size, size_t len, size_t byteOffset /*= 0*/)
+{
+    // Note: pData is not initialized because vmaMapMemory(...) allocates memory for pData. Similarly,
+    // vmaUnmapMemory deallocates the memory.
+    char* pData;
+    vmaMapMemory(DeviceManager::GetVkDevice().allocator, allocation, (void**)&pData);
+    // Forward pointer
+    pData += byteOffset;
+    memcpy(pData, data, len * data_size);
+    vmaUnmapMemory(DeviceManager::GetVkDevice().allocator, allocation);
+}

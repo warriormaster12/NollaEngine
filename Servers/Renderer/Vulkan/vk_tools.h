@@ -47,6 +47,8 @@ namespace vktools {
 	);
 
 	AllocatedBuffer CreateBuffer(size_t alloc_size, VkBufferUsageFlags usage, VmaMemoryUsage memory_usage);
+
+	void UploadData(const VmaAllocation& allocation, void* data, uint32_t data_size,size_t len, size_t byteOffset = 0);
 	
 	
 }

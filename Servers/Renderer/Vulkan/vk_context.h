@@ -9,8 +9,9 @@
 class VkContext {
 public: 
     static void InitContext();
-    static void CreatePipeline(const std::string& pipeline_name,std::vector<std::string> filepaths);
-    static void CreateBuffer(const std::string& pipeline_name,int set_index,size_t alloc_size, int usage);
+    static void CreatePipeline(const std::string& pipeline_name, std::vector<std::string> filepaths, uint32_t stride, std::vector<uint32_t> offsets);
+    static void CreateDescriptorBuffer(const std::string& pipeline_name,int set_index,size_t alloc_size, int usage);
+    static void CreateBuffer(const std::string& buffer_name, void* data, uint32_t stride, size_t alloc_size,int usage);
     static void BuildDescriptors(const std::string& pipeline_name);
     static void PrepareFrame();
     static void BeginNewRenderLayer(std::array<float, 4> color, float depth);
