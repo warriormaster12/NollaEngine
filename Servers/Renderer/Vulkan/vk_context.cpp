@@ -68,7 +68,7 @@ void VkContext::CreatePipeline(const std::string& pipeline_name, std::vector<std
         PipelineBuilder::input_assembly = vkdefaults::InputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
         //configure the rasterizer to draw filled triangles
-        PipelineBuilder::rasterizer = vkdefaults::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+        PipelineBuilder::rasterizer = vkdefaults::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE);
 
         //we don't use multisampling, so just run the default one
         PipelineBuilder::multisampling = vkdefaults::MultisamplingStateCreateInfo();
@@ -97,6 +97,7 @@ void VkContext::CreateDescriptorBuffer(const std::string& pipeline_name, int set
         auto& buffers = *utils::FindUnorderedMap(set_index, program.alloc_buffers);
         buffers.push_back(alloc_buffer);
         buffers.back().buffer_info = info;
+        buffers.back().buffer_usage = (VkBufferUsageFlags)usage;
     }
 }
 
@@ -117,7 +118,7 @@ void VkContext::CreateBuffer(const std::string& buffer_name, void* data, uint32_
         copy.size = BUFFER_SIZE;
         vkCmdCopyBuffer(cmd, stagingBuffer.buffer, utils::FindUnorderedMap(buffer_name, alloc_buffer)->buffer, 1, & copy);
     });
-
+    utils::FindUnorderedMap(buffer_name, alloc_buffer)->buffer_usage = (VkBufferUsageFlags) usage;
     vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 }
 
@@ -293,12 +294,34 @@ void VkContext::BindDescriptorSets() {
     }
 }
 
-void VkContext::Draw() {
+void VkContext::BindVertexBuffers() {
     auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
-    auto& current_buffer = utils::FindUnorderedMap("vertex", alloc_buffer)->buffer;
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(current_frame.main_command_buffer, 0, 1, &current_buffer, &offset);
-    vkCmdDraw(current_frame.main_command_buffer, 3, 1, 0, 0);
+    for(auto& current_buffer : alloc_buffer) {
+        if(current_buffer.second.buffer_usage == VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) {
+            VkDeviceSize offset = 0;
+            vkCmdBindVertexBuffers(current_frame.main_command_buffer, 0, 1, &current_buffer.second.buffer, &offset);
+        }
+    }
+}
+
+void VkContext::BindIndexBuffers() {
+    auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
+    for(auto& current_buffer : alloc_buffer) {
+        if(current_buffer.second.buffer_usage == VK_BUFFER_USAGE_INDEX_BUFFER_BIT) {
+            VkDeviceSize offset = 0;
+            vkCmdBindIndexBuffer(current_frame.main_command_buffer,current_buffer.second.buffer, offset, VK_INDEX_TYPE_UINT32);
+        }
+    }
+}
+
+void VkContext::Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex /*= 0*/, uint32_t first_instance /*= 0*/) {
+    auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
+    vkCmdDraw(current_frame.main_command_buffer, vertex_count, instance_count, first_vertex, first_instance);
+}
+
+void VkContext::DrawIndexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index /*= 0*/, uint32_t vertex_offset /*= 0*/,uint32_t first_instance /*= 0*/) {
+    auto& current_frame = CommandbufferManager::GetCurrentFrame(frame_number);
+    vkCmdDrawIndexed(current_frame.main_command_buffer, index_count, instance_count, first_index, vertex_offset,first_instance);
 }
 
 
@@ -391,13 +414,19 @@ void VkContext::DestroyPipeline(const std::string& pipeline_name) {
     });
 }
 
-void VkContext::DestroyBuffer(const std::string& pipeline_name, int set_index, int index) {
+void VkContext::DestroyDescriptorBuffer(const std::string& pipeline_name, int set_index, int index) {
     auto& program = *utils::FindUnorderedMap(pipeline_name, shader_program);
     auto& buffers = *utils::FindUnorderedMap(set_index, program.alloc_buffers);
     deletion_queuer.PushFunction([=]{
         vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator,buffers[index].buffer, buffers[index].allocation);
     });
-    
+}
+
+void VkContext::DestroyBuffer(const std::string& buffer_name) {
+    auto& buffer = *utils::FindUnorderedMap(buffer_name, alloc_buffer);
+    deletion_queuer.PushFunction([=]{
+        vmaDestroyBuffer(DeviceManager::GetVkDevice().allocator,buffer.buffer, buffer.allocation);
+    });
 }
 
 void VkContext::DestroyContext() {

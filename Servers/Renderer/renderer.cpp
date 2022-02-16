@@ -49,8 +49,20 @@ void Renderer::BindPushConstants(const void* p_values) {
     VkContext::BindPushConstants(p_values);
 }
 
-void Renderer::Draw() {
-    VkContext::Draw();
+void Renderer::BindVertexBuffers() {
+    VkContext::BindVertexBuffers();
+}
+
+void Renderer::BindIndexBuffers() {
+    VkContext::BindIndexBuffers();
+}
+
+void Renderer::Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex /*= 0*/, uint32_t first_instance /*= 0*/) {
+    VkContext::Draw(vertex_count, instance_count, first_vertex, first_instance);
+}
+
+void Renderer::DrawIndexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index /*= 0*/, uint32_t vertex_offset /*= 0*/,uint32_t first_instance /*= 0*/) {
+    VkContext::DrawIndexed(index_count, instance_count, first_index, vertex_offset,first_instance);
 }
 
 void Renderer::EndRenderLayer() {
@@ -61,8 +73,12 @@ void Renderer::DestroyShaderProgram(const std::string& shader_name) {
     VkContext::DestroyPipeline(shader_name);
 }
 
-void Renderer::DestroyBuffer(const std::string& shader_name,int set_index, int index) {
-    VkContext::DestroyBuffer(shader_name, set_index,index);
+void Renderer::DestroyDescriptorBuffer(const std::string& shader_name,int set_index, int index) {
+    VkContext::DestroyDescriptorBuffer(shader_name, set_index,index);
+}
+
+void Renderer::DestroyBuffer(const std::string& buffer_name) {
+    VkContext::DestroyBuffer(buffer_name);
 }
 
 void Renderer::Destroy(){

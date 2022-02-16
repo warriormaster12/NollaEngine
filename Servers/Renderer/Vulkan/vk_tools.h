@@ -31,6 +31,8 @@ namespace vktools {
 		VkBuffer buffer;
 		VmaAllocation allocation;
 
+		VkBufferUsageFlags buffer_usage = {};
+
 		VkDescriptorBufferInfo buffer_info;
 	};
 

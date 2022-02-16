@@ -13,6 +13,7 @@ struct TestBufferData {
 };
 
 struct Camera {
+    glm::vec4 data;
     glm::mat4 render_matrix;
 };
 
@@ -23,7 +24,7 @@ struct Vertex {
 	glm::vec3 color;
 
 };
-
+int frame_number = 0;
 int main(int argc, char* argv[]) 
 {
     Logger::Init();
@@ -34,22 +35,30 @@ int main(int argc, char* argv[])
     Renderer::CreateDescriptorBuffer("triangle",1,sizeof(TestBufferData), UNIFORM);
 
     std::vector<Vertex> vertices;
-    vertices.resize(3);
+    std::vector<uint32_t> indices = {
+        0, 1, 2, 2, 3, 0
+    };
+
+    vertices.resize(4);
 
 	//vertex positions
-	vertices[0].position = { 1.f, 1.f, 0.0f };
-	vertices[1].position = {-1.f, 1.f, 0.0f };
-	vertices[2].position = { 0.f,-1.f, 0.0f };
+	vertices[0].position = { -1.0f, -1.0f, 0.0f };
+	vertices[1].position = {1.0f, -1.0f, 0.0f };
+	vertices[2].position = { 1.0f,1.0f, 0.0f };
+    vertices[3].position = { -1.0f,1.0f, 0.0f };
+
 
 	//vertex colors, rgb
 	vertices[0].color = { 1.f, 0.f, 0.0f }; //pure red
 	vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
 	vertices[2].color = { 0.f, 0.f, 1.0f }; //pure blue
+    vertices[3].color = { 1.f, 1.f, 1.0f }; //pure white
 
     Renderer::CreateBuffer("vertex", vertices.data(), sizeof(Vertex),vertices.size(), VERTEX);
+    Renderer::CreateBuffer("index", indices.data(), sizeof(uint32_t),indices.size(), INDEX);
     Renderer::BuildDescriptors("triangle");
     while (Window::GetWindowStatus()) {
-        Renderer::InsertDrawCalls([](){
+        Renderer::InsertDrawCalls([=](){
             Renderer::BeginNewRenderLayer({0.0f, 1.0f, 0.0f, 1.0f}, 1.0f);
             struct Pushdata
             {
@@ -63,7 +72,7 @@ int main(int argc, char* argv[])
             glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
             projection[1][1] *= -1;
             //model rotation
-            glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(0.0f), glm::vec3(0, 1, 0));
+            glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(45.0f), glm::vec3(0, 1, 0));
 
             //calculate final mesh matrix
             glm::mat4 mesh_matrix = projection * view * model;
@@ -80,12 +89,17 @@ int main(int argc, char* argv[])
             Renderer::BindShaderProgram("triangle");
             Renderer::BindPushConstants(&data);
             Renderer::BindDescriptorSets();
-            Renderer::Draw();
+            Renderer::BindVertexBuffers();
+            Renderer::BindIndexBuffers();
+            Renderer::DrawIndexed(indices.size(), 1);
             Renderer::EndRenderLayer();
+            frame_number ++;
         });    
     }
-    Renderer::DestroyBuffer("triangle", 0,0);
-    Renderer::DestroyBuffer("triangle", 1,0);
+    Renderer::DestroyDescriptorBuffer("triangle", 0,0);
+    Renderer::DestroyDescriptorBuffer("triangle", 1,0);
+    Renderer::DestroyBuffer("index");
+    Renderer::DestroyBuffer("vertex");
     Renderer::DestroyShaderProgram("triangle");
     Renderer::Destroy();
     Window::DestroyWindow();
