@@ -4959,7 +4959,7 @@ const char* spvReflectSourceLanguage(SpvSourceLanguage source_lang)
     case SpvSourceLanguageOpenCL_C       : return "OpenCL_C";
     case SpvSourceLanguageOpenCL_CPP     : return "OpenCL_CPP";
     case SpvSourceLanguageHLSL           : return "HLSL";
-    //case SpvSourceLanguageCPP_for_OpenCL : return "CPP_for_OpenCL";
+    case SpvSourceLanguageCPP_for_OpenCL : return "CPP_for_OpenCL";
     case SpvSourceLanguageMax:
       break;
   }
