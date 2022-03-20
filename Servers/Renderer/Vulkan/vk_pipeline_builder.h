@@ -79,6 +79,7 @@ public:
 	static inline VkPipelineRasterizationStateCreateInfo rasterizer;
 	static inline VkPipelineColorBlendAttachmentState color_blend_attachment;
 	static inline VkPipelineMultisampleStateCreateInfo multisampling;
+    static inline VkPipelineDepthStencilStateCreateInfo depth_stencil = {};
 	static inline VkPipelineLayout pipeline_layout;
 
     static inline uint32_t stride;

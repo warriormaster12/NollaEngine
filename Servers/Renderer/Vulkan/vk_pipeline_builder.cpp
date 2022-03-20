@@ -303,6 +303,7 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
 	pipeline_info.pRasterizationState = &rasterizer;
 	pipeline_info.pMultisampleState = &multisampling;
 	pipeline_info.pColorBlendState = &colorBlending;
+    pipeline_info.pDepthStencilState = &depth_stencil;
 	pipeline_info.layout = shader_program.layout;
 	pipeline_info.renderPass = VK_NULL_HANDLE;
 	pipeline_info.subpass = 0;
@@ -314,9 +315,9 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
     pipeline_rendering_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
     pipeline_rendering_create_info.colorAttachmentCount = 1;
     pipeline_rendering_create_info.pColorAttachmentFormats = &SwapchainManager::GetVkSwapchain().swapchain_image_format;
+    
     pipeline_rendering_create_info.depthAttachmentFormat = SwapchainManager::GetVkSwapchain().swapchain_depth_format;
     pipeline_rendering_create_info.stencilAttachmentFormat =  SwapchainManager::GetVkSwapchain().swapchain_depth_format;
-    pipeline_rendering_create_info.viewMask = 0;
 
     pipeline_info.pNext = &pipeline_rendering_create_info;
 

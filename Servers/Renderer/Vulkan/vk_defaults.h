@@ -31,4 +31,6 @@ namespace vkdefaults {
     VkPipelineColorBlendAttachmentState ColorBlendAttachmentState();
 
     VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo();
+
+    VkPipelineDepthStencilStateCreateInfo DepthStencilCreateInfo(bool bDepthTest, bool bDepthWrite, VkCompareOp compareOp);
 }

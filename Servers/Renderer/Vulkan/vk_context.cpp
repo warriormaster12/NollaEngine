@@ -76,6 +76,8 @@ void VkContext::CreatePipeline(const std::string& pipeline_name, std::vector<std
         //a single blend attachment with no blending and writing to RGBA
         PipelineBuilder::color_blend_attachment = vkdefaults::ColorBlendAttachmentState();
 
+        PipelineBuilder::depth_stencil = vkdefaults::DepthStencilCreateInfo(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
         //finally build the pipeline
         PipelineBuilder::BuildShaderProgram(program); 
     }   
