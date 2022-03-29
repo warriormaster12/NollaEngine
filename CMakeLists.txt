@@ -38,7 +38,6 @@ target_include_directories(NollaEngine PUBLIC
     Servers/Renderer/
     Servers/Renderer/Vulkan/
     
-    Scene/Components/
     Scene/
 )
 

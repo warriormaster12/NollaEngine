@@ -1,10 +1,13 @@
 #include <iostream>
+#include "glm/fwd.hpp"
 #include "logger.h"
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <vector>
 
 #include "scene.h"
+
+#include "Components/transform.h"
 
 #include "window.h"
 #include "renderer.h"
@@ -26,6 +29,7 @@ struct Vertex {
 
 };
 int frame_number = 0;
+Scene scene;
 int main(int argc, char* argv[]) 
 {
     Logger::Init();
@@ -35,23 +39,9 @@ int main(int argc, char* argv[])
     Renderer::CreateDescriptorBuffer("triangle",0,sizeof(Camera), UNIFORM);
     Renderer::CreateDescriptorBuffer("triangle",1,sizeof(TestBufferData), UNIFORM);
 
-    Scene scene;
 
     scene.CreateEntity("test");
-    scene.CreateEntity("test1");
-    scene.CreateEntity("test2");
-    scene.CreateEntity("test3");
-    scene.GetEntity("test").AddComponent<Camera>();
-    scene.GetEntity("test3").AddComponent<Camera>();
-    scene.GetEntity("test").GetComponent<Camera>().data.x = 25;
-    scene.GetEntity("test3").GetComponent<Camera>().data.x = 35;
-    
-    ENGINE_CORE_INFO(scene.GetEntity("test").GetComponent<Camera>().data.x);
-    ENGINE_CORE_INFO(scene.GetEntity("test3").GetComponent<Camera>().data.x);
-
-    scene.GetEntity("test3").RemoveComponent<Camera>();
-    scene.GetEntity("test3").GetComponent<Camera>();
-
+    scene.GetEntity("test").AddComponent<TransformComponent>();
     
 
     for(auto& entity : scene.entity_list) {
@@ -95,8 +85,10 @@ int main(int argc, char* argv[])
             //camera projection
             glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
             projection[1][1] *= -1;
-            //model rotation
-            glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(45.0f), glm::vec3(0, 1, 0));
+
+            scene.GetEntity("test").GetComponent<TransformComponent>().translation = glm::vec3(1.0f, 1.0f, 0.0f);
+            scene.GetEntity("test").GetComponent<TransformComponent>().scale = glm::vec3 (1.0, 1.25f, 1.0f);
+            glm::mat4 model = scene.GetEntity("test").GetComponent<TransformComponent>().get_transform();
 
             //calculate final mesh matrix
             glm::mat4 mesh_matrix = projection * view * model;
