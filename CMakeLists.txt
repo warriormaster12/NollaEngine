@@ -11,6 +11,7 @@ ${PROJECT_SOURCE_DIR}/Third-Party/vma/*
 ${PROJECT_SOURCE_DIR}/Third-Party/spirv-reflect/*
 ${PROJECT_SOURCE_DIR}/Third-Party/vk-bootstrap/*
 ${PROJECT_SOURCE_DIR}/Servers/*
+${PROJECT_SOURCE_DIR}/Scene/*
 ${PROJECT_SOURCE_DIR}/Utils/*
 )
 
@@ -36,6 +37,9 @@ target_include_directories(NollaEngine PUBLIC
     Servers/Window/
     Servers/Renderer/
     Servers/Renderer/Vulkan/
+    
+    Scene/Components/
+    Scene/
 )
 
 

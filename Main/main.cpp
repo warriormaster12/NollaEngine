@@ -1,9 +1,10 @@
 #include <iostream>
 #include "logger.h"
-#include <entt.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <vector>
+
+#include "scene.h"
 
 #include "window.h"
 #include "renderer.h"
@@ -33,6 +34,29 @@ int main(int argc, char* argv[])
     Renderer::CreateShaderProgram("triangle",{"Shaders/triangle_vert.spv", "Shaders/triangle_frag.spv"}, sizeof(Vertex), {offsetof(Vertex, position),offsetof(Vertex, normal), offsetof(Vertex, color)});
     Renderer::CreateDescriptorBuffer("triangle",0,sizeof(Camera), UNIFORM);
     Renderer::CreateDescriptorBuffer("triangle",1,sizeof(TestBufferData), UNIFORM);
+
+    Scene scene;
+
+    scene.CreateEntity("test");
+    scene.CreateEntity("test1");
+    scene.CreateEntity("test2");
+    scene.CreateEntity("test3");
+    scene.GetEntity("test").AddComponent<Camera>();
+    scene.GetEntity("test3").AddComponent<Camera>();
+    scene.GetEntity("test").GetComponent<Camera>().data.x = 25;
+    scene.GetEntity("test3").GetComponent<Camera>().data.x = 35;
+    
+    ENGINE_CORE_INFO(scene.GetEntity("test").GetComponent<Camera>().data.x);
+    ENGINE_CORE_INFO(scene.GetEntity("test3").GetComponent<Camera>().data.x);
+
+    scene.GetEntity("test3").RemoveComponent<Camera>();
+    scene.GetEntity("test3").GetComponent<Camera>();
+
+    
+
+    for(auto& entity : scene.entity_list) {
+        ENGINE_CORE_INFO(entity.name);
+    }
 
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices = {

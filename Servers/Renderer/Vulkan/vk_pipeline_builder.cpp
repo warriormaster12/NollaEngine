@@ -318,7 +318,8 @@ void PipelineBuilder::BuildShaderProgram(ShaderProgram& shader_program) {
     
     pipeline_rendering_create_info.depthAttachmentFormat = SwapchainManager::GetVkSwapchain().swapchain_depth_format;
     pipeline_rendering_create_info.stencilAttachmentFormat =  SwapchainManager::GetVkSwapchain().swapchain_depth_format;
-
+    pipeline_rendering_create_info.viewMask = 0;
+    
     pipeline_info.pNext = &pipeline_rendering_create_info;
 
 
