@@ -52,6 +52,7 @@ namespace vktools {
 
 	void UploadData(const VmaAllocation& allocation, void* data, uint32_t data_size,size_t len, size_t byteOffset = 0);
 	
+	VkBool32 GetSupportedDepthFormat(VkPhysicalDevice& physical_device, VkFormat* depth_format);
 	
 }
 

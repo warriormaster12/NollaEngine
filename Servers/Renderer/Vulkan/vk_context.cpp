@@ -188,7 +188,11 @@ void VkContext::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
     
-
+    VkImageSubresourceRange depth_subresource_range = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+    // Stencil aspect should only be set on depth + stencil formats (VK_FORMAT_D16_UNORM_S8_UINT..VK_FORMAT_D32_SFLOAT_S8_UINT
+    if (SwapchainManager::GetVkSwapchain().swapchain_depth_format >= VK_FORMAT_D16_UNORM_S8_UINT) {
+		depth_subresource_range.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+	}
     vktools::InsertImageMemoryBarrier(
         current_frame.main_command_buffer,
         SwapchainManager::GetVkSwapchain().depth_image.image,
@@ -198,7 +202,7 @@ void VkContext::BeginNewRenderLayer(std::array<float, 4> color, float depth) {
         VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-        VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+        depth_subresource_range);
 
     // New structures are used to define the attachments used in dynamic rendering
     VkRenderingAttachmentInfoKHR colorAttachment{};

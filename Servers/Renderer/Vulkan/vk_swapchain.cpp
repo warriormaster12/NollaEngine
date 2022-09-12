@@ -39,7 +39,7 @@ void SwapchainManager::Init(VkPresentModeKHR present_mode /*= VK_PRESENT_MODE_IM
 	};
 
 	//hardcoding the depth format to 32 bit float
-	vk_swapchain.swapchain_depth_format = VK_FORMAT_D32_SFLOAT;
+	vktools::GetSupportedDepthFormat(DeviceManager::GetVkDevice().physical_device, &vk_swapchain.swapchain_depth_format);
 
 	//the depth image will be a image with the format we selected and Depth Attachment usage flag
 	VkImageCreateInfo dimg_info = vkdefaults::ImageCreateInfo(vk_swapchain.swapchain_depth_format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depth_image_extent);
