@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.16.0)
 project(NollaEngine VERSION 0.1)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -22,6 +22,16 @@ if (WIN32 AND MINGW)
 endif()
 
 add_executable(NollaEngine ${SRC})
+
+if (UNIX AND NOT APPLE)
+    set (LINUX TRUE)
+    if(DGLFW_USE_WAYLAND=ON)
+        set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WAYLAND_KHR)
+    else()
+        set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_XLIB_KHR)
+    endif ()
+endif ()
+
 
 target_include_directories(NollaEngine PUBLIC
     Main/
